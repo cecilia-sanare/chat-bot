@@ -1,0 +1,33 @@
+{
+  "name": "demo",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun .",
+    "start": "NODE_ENV=production bun .",
+    "tdd": "bun test --watch",
+    "test:coverage": "bun test --coverage",
+    "generate": "drizzle-kit generate",
+    "migrate": "drizzle-kit migrate"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "drizzle-kit": "^0.31.9",
+    "tsx": "^4.21.0",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@flarie/core": "workspace:^",
+    "@flarie/discord": "workspace:^",
+    "@flarie/fluxer": "workspace:^",
+    "@libsql/client": "^0.17.0",
+    "@ribbon-studios/js-utils": "^3.0.1",
+    "dedent": "^1.7.1",
+    "drizzle-orm": "^0.45.1"
+  }
+}

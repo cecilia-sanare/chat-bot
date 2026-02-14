@@ -1,0 +1,20 @@
+{
+  "name": "flarie",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "packages/*",
+      "!packages/demo/**"
+    ]
+  },
+  "scripts": {
+    "dev": "bun run --cwd packages/demo dev",
+    "start": "bun run --cwd packages/demo start",
+    "build": "bun run --filter '!demo' 'build'",
+    "types": "bun run --filter '!demo' 'types'"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
