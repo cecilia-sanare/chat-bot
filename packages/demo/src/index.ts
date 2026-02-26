@@ -87,6 +87,11 @@ if (defined.sonarr(config.sonarr) && defined.radarr(config.radarr)) {
       radarr.getEntireWanted(),
     ]);
 
+    const upgrades = {
+      sonarr: sonarrQueue.filter((item) => sonarrWanted.every((episode) => episode.id !== item.episodeId)),
+      radarr: radarrQueue.filter((item) => radarrWanted.every((movie) => movie.id !== item.movieId)),
+    };
+
     const byId = {
       sonarr: sonarrQueue.reduce<Record<number, Sonarr.QueueResource>>((output, item) => {
         if (item.episodeId) {
@@ -182,34 +187,52 @@ if (defined.sonarr(config.sonarr) && defined.radarr(config.radarr)) {
       embeds: [
         {
           color: '#f19cbb',
-          title: `Shows (${sonarrQueue.length} / ${sonarrWanted.length})`,
+          title: `Shows (${sonarrQueue.length} / ${sonarrWanted.length + upgrades.sonarr.length})`,
           description: dedent`
-          ${Object.values(bySeries)
-            .sort((a, b) => {
-              const title = {
-                a: a.title?.replace(/^(The|A)\s/i, '') ?? '',
-                b: b.title?.replace(/^(The|A)\s/i, '') ?? '',
-              };
+          ${[
+            upgrades.sonarr.length > 0 &&
+              dedent`
+              **⚙️ Upgrades**
+              ${upgrades.sonarr.map((item) => `- 🟢 [${item.series?.title} - Season ${item.episode?.seasonNumber} Episode ${item.episode?.episodeNumber}](${config.sonarr.url}/series/${item.series?.titleSlug})`)}
+            `,
+            bySeries.length > 0 &&
+              dedent`
+              **✨ New**
+              ${Object.values(bySeries)
+                .sort((a, b) => {
+                  const title = {
+                    a: a.title?.replace(/^(The|A)\s/i, '') ?? '',
+                    b: b.title?.replace(/^(The|A)\s/i, '') ?? '',
+                  };
 
-              return title.a.localeCompare(title.b);
-            })
-            .sort((a, b) => {
-              if (a.queued === b.queued) return 0;
-              if (a.queued) return -1;
-              return 1;
-            })
-            .map(
-              ({ title, slug, queued, records }) =>
-                `- ${queued === records.length ? '🟢' : queued > 0 ? '🟡' : '🔴'} [${title}](https://arr.sanare.dev/sonarr/series/${slug}) (${queued > 0 ? `${queued}/` : ''}${records.length})`
-            )
-            .join('\n')}
+                  return title.a.localeCompare(title.b);
+                })
+                .sort((a, b) => {
+                  if (a.queued === b.queued) return 0;
+                  if (a.queued) return -1;
+                  return 1;
+                })
+                .map(
+                  ({ title, slug, queued, records }) =>
+                    `- ${queued === records.length ? '🟢' : queued > 0 ? '🟡' : '🔴'} [${title}](${config.sonarr.url}/series/${slug}) (${queued > 0 ? `${queued}/` : ''}${records.length})`
+                )
+                .join('\n')}
+            `,
+          ]
+            .filter(Boolean)
+            .join('\n\n')}
           `,
         },
         {
           color: '#f19cbb',
-          title: `Movies (${radarrQueue.length} / ${moviesByStatus.released.length})`,
+          title: `Movies (${radarrQueue.length} / ${moviesByStatus.released.length + upgrades.radarr.length})`,
           description: dedent`
           ${[
+            upgrades.radarr.length > 0 &&
+              dedent`
+              **⚙️ Upgrades**
+              ${upgrades.radarr.map((item) => `- 🟢 [${item.movie?.title}](${config.radarr.url}/series/${item.movie?.titleSlug})`)}
+            `,
             moviesByStatus.released.length > 0 &&
               dedent`
               **Released**

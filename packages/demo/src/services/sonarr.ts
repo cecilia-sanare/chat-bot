@@ -52,6 +52,8 @@ export class Sonarr {
       params: {
         page,
         pageSize,
+        includeSeries: true,
+        includeEpisode: true,
       },
       headers: {
         'X-Api-Key': this.#token,
@@ -118,5 +120,15 @@ export namespace Sonarr {
     id: number | null;
     seriesId: number | null;
     episodeId: number | null;
+    series?: {
+      title?: string;
+      titleSlug?: string;
+    };
+    episode?: {
+      title: string;
+      titleSlug?: string;
+      seasonNumber: number;
+      episodeNumber: number;
+    };
   };
 }

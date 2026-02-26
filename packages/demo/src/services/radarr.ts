@@ -49,6 +49,7 @@ export class Radarr {
       params: {
         page,
         pageSize,
+        includeMovie: true,
       },
       headers: {
         'X-Api-Key': this.#token,
@@ -113,5 +114,9 @@ export namespace Radarr {
   export type QueueResource = {
     id: number | null;
     movieId: number | null;
+    movie?: {
+      title?: string;
+      titleSlug?: string;
+    };
   };
 }
