@@ -30,3 +30,29 @@ DB_URL=file:local.db
 bun ci
 bun start
 ```
+
+### Docker Compose
+
+```yml
+services:
+  chat-bot:
+    container_name: chat-bot
+    image: ghcr.io/cecilia-sanare/chat-bot:latest
+    restart: unless-stopped
+    environment:
+      # Your Fluxer Bot Token (Optional)
+      FLUXER_BOT_TOKEN: ...
+      # Your Discord Bot Token (Optional)
+      DISCORD_BOT_TOKEN: ...
+      # Sonarr Base URL (Optional)
+      SONARR_URL: ...
+      # Sonarr API Key (Optional)
+      SONARR_API_KEY: ...
+      # Radarr Base URL (Optional)
+      RADARR_URL: ...
+      # Radarr API Key (Optional)
+      RADARR_API_KEY: ...
+    volumes:
+      # SQLite Database
+      - ./data:/data
+```

@@ -7,6 +7,7 @@ COPY . /app/.
 RUN bun ci
 
 ENV DB_URL="file:/data/local.db"
+ENV NODE_ENV="production"
 
 # run the app
 # USER bun

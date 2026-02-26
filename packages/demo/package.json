@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "bun .",
-    "start": "NODE_ENV=production bun .",
+    "start": "NODE_ENV=production bun migrate && bun .",
     "tdd": "bun test --watch",
     "test:coverage": "bun test --coverage",
     "generate": "drizzle-kit generate",
