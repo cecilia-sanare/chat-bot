@@ -37,7 +37,7 @@ bun start
 services:
   chat-bot:
     container_name: chat-bot
-    image: ghcr.io/cecilia-sanare/chat-bot:latest
+    image: ghcr.io/cecilia-sanare/chat-bot:main
     restart: unless-stopped
     environment:
       # Your Fluxer Bot Token (Optional)
