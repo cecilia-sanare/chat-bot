@@ -5,6 +5,7 @@ export interface FlarieIncomingMessage {
   author: FlarieUser;
   content: string;
 
+  typing(): Promise<void>;
   reply(message: string | FlarieOutgoingMessage): Promise<void>;
 }
 

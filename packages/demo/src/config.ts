@@ -35,11 +35,11 @@ export const config: Config = {
   db: process.env.DB_URL ?? 'file:local.db',
   fluxer: {
     token: process.env.FLUXER_BOT_TOKEN,
-    status: 'Playing with your heart~ ❤️',
+    status: process.env.STATUS ?? 'Playing with your heart~ ❤️',
   },
   discord: {
     token: process.env.DISCORD_BOT_TOKEN,
-    status: 'Playing with your heart~ ❤️',
+    status: process.env.STATUS ?? 'Playing with your heart~ ❤️',
   },
   sonarr: {
     url: process.env.SONARR_URL,

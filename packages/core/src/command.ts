@@ -1,23 +1,23 @@
-import { toRegExp } from './utils/regex';
+import { toRegExpFunction, type RegExpFunction } from './utils/regex';
 import type { FlariePlatform } from './platforms';
 
 export class FlarieCommand {
-  private expression: RegExp;
+  private exec: RegExpFunction;
   constructor(
     command: string,
     private callback: FlarieCommand.Callback
   ) {
-    this.expression = toRegExp(command);
+    this.exec = toRegExpFunction(command);
   }
 
   async emit(details: FlariePlatform.MessageListenerDetails) {
-    const result = this.expression.exec(details.message.content);
+    const [matches, groups] = this.exec(details.message.content);
 
-    if (!result) return;
+    if (!matches) return;
 
     await this.callback({
       ...details,
-      args: result?.groups ?? {},
+      args: groups,
     });
   }
 }

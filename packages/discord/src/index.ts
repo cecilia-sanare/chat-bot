@@ -2,11 +2,8 @@ import {
   ActivityType,
   Client,
   Events,
-  GatewayDispatchEvents,
   GatewayIntentBits,
   MessageCreateOptions,
-  MessageFlags,
-  MessagePayload,
   MessageReferenceType,
   MessageReplyOptions,
   Partials,
@@ -61,6 +58,8 @@ export class DiscordPlatform extends FlariePlatform {
         },
         content: incomingMessage.content,
 
+        typing: incomingMessage.channel.sendTyping,
+
         reply: async (outgoingMessage) => {
           const outgoingFlarieMessage: FlarieOutgoingMessage =
             typeof outgoingMessage === 'string'
@@ -102,7 +101,23 @@ export class DiscordPlatform extends FlariePlatform {
       console.log(`[Discord] Logged in as ${this.#bot.username}!`);
     });
 
-    this.#client.login(token);
+    try {
+      const login = async () => {
+        while (true) {
+          try {
+            await this.#client.login(token);
+            return;
+          } catch (error) {
+            console.warn(`[Fluxer] Failed to connect, fluxer may be down! We'll retry in 30 seconds!`);
+            await new Promise((resolve) => setTimeout(resolve, 30000));
+          }
+        }
+      };
+
+      login();
+    } catch (error) {
+      console.error('Failed to connect to the gateway!', error);
+    }
   }
   override async send(channelId: string, message: FlarieOutgoingMessage): Promise<string> {
     const channel = await this.#client.channels.cache.get(channelId);

@@ -39,6 +39,10 @@ export class FluxerPlatform extends FlariePlatform {
           },
           content: message.content,
 
+          typing: async () => {
+            await message.channel?.sendTyping();
+          },
+
           reply: async (response) => {
             await message.reply(this.toMessage(response));
           },
@@ -47,13 +51,7 @@ export class FluxerPlatform extends FlariePlatform {
       });
     });
 
-    const timeout = setTimeout(() => {
-      console.log('[Fluxer] May be down at the moment, please be patient!');
-    }, 10000);
-
     this.#client.on(Events.Ready, () => {
-      clearTimeout(timeout);
-
       if (!this.#client.user) {
         throw new Error('[Fluxer] Login succeeded, but no bot user is present!');
       }
@@ -68,10 +66,21 @@ export class FluxerPlatform extends FlariePlatform {
     });
 
     try {
-      this.#client.login(token);
-    } catch {
-      console.error('Failed to connect to the gateway!');
-      process.exit(1);
+      const login = async () => {
+        while (true) {
+          try {
+            await this.#client.login(token);
+            return;
+          } catch (error) {
+            console.warn(`[Fluxer] Failed to connect, fluxer may be down! We'll retry in 30 seconds!`);
+            await new Promise((resolve) => setTimeout(resolve, 30000));
+          }
+        }
+      };
+
+      login();
+    } catch (error) {
+      console.error('Failed to connect to the gateway!', error);
     }
   }
 
