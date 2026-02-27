@@ -30,7 +30,9 @@ export function getPlatforms() {
   return platforms;
 }
 
-console.log(`\n[ChatBot]: Starting up! (${config.version})`);
+console.log(
+  `\n[ChatBot]: Starting up! (${config.version === 'local' ? config.version : `https://github.com/cecilia-sanare/chat-bot/tree/${config.version}`})`
+);
 
 const flarie = new Flarie({
   platforms: getPlatforms(),
