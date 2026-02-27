@@ -1,4 +1,6 @@
 FROM oven/bun:1-alpine
+ARG GIT_SHA=local
+ENV VERSION=$GIT_SHA
 
 RUN mkdir -p /app /data
 WORKDIR /app

@@ -4,6 +4,7 @@ import { Sonarr } from './services/sonarr';
 import { Radarr } from './services/radarr';
 
 export type Config = {
+  version: string;
   environment: string;
   db: string;
   fluxer: Partial<FluxerPlatform.Options>;
@@ -31,6 +32,7 @@ export namespace defined {
 }
 
 export const config: Config = {
+  version: process.env.VERSION ?? 'local',
   environment: process.env.NODE_ENV ?? 'development',
   db: process.env.DB_URL ?? 'file:local.db',
   fluxer: {
