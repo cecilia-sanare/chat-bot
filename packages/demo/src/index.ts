@@ -234,27 +234,27 @@ if (defined.sonarr(config.sonarr) && defined.radarr(config.radarr)) {
             upgrades.radarr.length > 0 &&
               dedent`
               **⚙️ Upgrades**
-              ${upgrades.radarr.map((item) => `- 🟢 [${item.movie?.title}](${config.radarr.url}/series/${item.movie?.titleSlug})`)}
+              ${upgrades.radarr.map((item) => `- 🟢 [${item.movie?.title}](${config.radarr.url}/movie/${item.movie?.titleSlug})`)}
             `,
             moviesByStatus.released.length > 0 &&
               dedent`
               **Released**
-              ${moviesByStatus.released.map(({ title, queued, titleSlug }) => `- ${queued ? '🟢' : '🔴'} [${title}](${config.radarr.url}/series/${titleSlug})`).join('\n')}
+              ${moviesByStatus.released.map(({ title, queued, titleSlug }) => `- ${queued ? '🟢' : '🔴'} [${title}](${config.radarr.url}/movie/${titleSlug})`).join('\n')}
             `,
             moviesByStatus.inCinemas.length > 0 &&
               dedent`
               **🍿 In Cinemas**
-              ${moviesByStatus.inCinemas.map(({ title, titleSlug }) => `- [${title}](${config.radarr.url}/series/${titleSlug})`).join('\n')}
+              ${moviesByStatus.inCinemas.map(({ title, titleSlug }) => `- [${title}](${config.radarr.url}/movie/${titleSlug})`).join('\n')}
             `,
             (moviesByStatus.announced.length > 0 || moviesByStatus.tba.length > 0) &&
               dedent`
               **🎤 Announced**
-              ${[...moviesByStatus.announced, ...moviesByStatus.tba].map(({ title, titleSlug }) => `- [${title}](${config.radarr.url}/series/${titleSlug})`).join('\n')}
+              ${[...moviesByStatus.announced, ...moviesByStatus.tba].map(({ title, titleSlug }) => `- [${title}](${config.radarr.url}/movie/${titleSlug})`).join('\n')}
             `,
             moviesByStatus.deleted.length > 0 &&
               dedent`
               **🗑️ Deleted**
-              ${moviesByStatus.deleted.map(({ title, titleSlug }) => `- [${title}](${config.radarr.url}/series/${titleSlug})`).join('\n')}
+              ${moviesByStatus.deleted.map(({ title, titleSlug }) => `- [${title}](${config.radarr.url}/movie/${titleSlug})`).join('\n')}
             `,
           ]
             .filter(Boolean)
