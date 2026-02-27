@@ -25,6 +25,21 @@ export type FlarieEmbed = {
   title?: string;
   color?: string;
   description?: string;
+  url?: string;
+  image?: FlarieEmbedMedia | string;
+  thumbnail?: FlarieEmbedMedia | string;
+  footer?:
+    | {
+        text: string;
+        icon_url?: string;
+      }
+    | string;
+};
+
+export type FlarieEmbedMedia = {
+  url: string;
+  width?: number;
+  height?: number;
 };
 
 export type FlarieUser = {

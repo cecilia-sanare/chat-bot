@@ -77,6 +77,17 @@ export class Radarr {
 
     return [...records, ...results.reduce<Radarr.QueueResource[]>((output, { records }) => output.concat(records), [])];
   }
+
+  async lookup(term: string) {
+    return await rfetch<Radarr.MovieResource[]>(join(this.#url, '/v3/movie/lookup'), {
+      params: {
+        term,
+      },
+      headers: {
+        'X-Api-Key': this.#token,
+      },
+    });
+  }
 }
 
 export namespace Radarr {
@@ -100,7 +111,21 @@ export namespace Radarr {
     tmdbId: number;
     title: string | null;
     titleSlug: string | null;
+    remotePoster: string | null;
     status: MovieStatus;
+    monitored: boolean;
+    isAvailable: boolean;
+    movieFile?: MovieFile;
+  };
+
+  export type MovieFile = {
+    movieId: number;
+    quality: {
+      quality: {
+        id: number;
+        name: string;
+      };
+    };
   };
 
   export enum MovieStatus {

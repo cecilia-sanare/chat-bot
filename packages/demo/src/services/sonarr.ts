@@ -81,6 +81,17 @@ export class Sonarr {
 
     return [...records, ...results.reduce<Sonarr.QueueResource[]>((output, { records }) => output.concat(records), [])];
   }
+
+  async lookup(term: string) {
+    return await rfetch<Sonarr.EpisodeResource[]>(join(this.#url, '/v3/series/lookup'), {
+      params: {
+        term,
+      },
+      headers: {
+        'X-Api-Key': this.#token,
+      },
+    });
+  }
 }
 
 export namespace Sonarr {
@@ -97,6 +108,8 @@ export namespace Sonarr {
     totalRecords: number;
     records: T[] | null;
   };
+
+  export type SeriesResource = {};
 
   export type EpisodeResource = {
     id: number;

@@ -106,9 +106,11 @@ export class FluxerPlatform extends FlariePlatform {
       // flags: this.toFlags(message),
       content: message.content,
       embeds: message.embeds?.map((embed) => ({
-        title: embed.title,
+        ...embed,
         color: color(embed.color),
-        description: embed.description,
+        image: typeof embed.image === 'string' ? { url: embed.image } : embed.image,
+        thumbnail: typeof embed.thumbnail === 'string' ? { url: embed.thumbnail } : embed.thumbnail,
+        footer: typeof embed.footer === 'string' ? { text: embed.footer } : embed.footer,
       })),
       // message_reference: message.reference
       //   ? {

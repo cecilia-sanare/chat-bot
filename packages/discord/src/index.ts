@@ -58,7 +58,7 @@ export class DiscordPlatform extends FlariePlatform {
         },
         content: incomingMessage.content,
 
-        typing: incomingMessage.channel.sendTyping,
+        typing: incomingMessage.channel.sendTyping.bind(incomingMessage.channel),
 
         reply: async (outgoingMessage) => {
           const outgoingFlarieMessage: FlarieOutgoingMessage =
@@ -145,9 +145,11 @@ export class DiscordPlatform extends FlariePlatform {
       // flags: message.ephemeral ? MessageFlags.Ephemeral : undefined,
       content: message.content,
       embeds: message.embeds?.map((embed) => ({
-        title: embed.title,
+        ...embed,
         color: color(embed.color),
-        description: embed.description,
+        image: typeof embed.image === 'string' ? { url: embed.image } : embed.image,
+        thumbnail: typeof embed.thumbnail === 'string' ? { url: embed.thumbnail } : embed.thumbnail,
+        footer: typeof embed.footer === 'string' ? { text: embed.footer } : embed.footer,
       })),
     };
   }
