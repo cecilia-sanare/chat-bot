@@ -2,7 +2,6 @@ import { Flarie, FlariePlatform, ShellPlatform } from '@flarie/core';
 import { DiscordPlatform } from '@flarie/discord';
 import { FluxerPlatform } from '@flarie/fluxer';
 import { getConfig, setConfig } from './services/config';
-import { createReactionRoles } from './services/reaction-roles';
 import { Sonarr } from './services/sonarr';
 import dedent from 'dedent';
 import { Radarr } from './services/radarr';
@@ -30,6 +29,8 @@ export function getPlatforms() {
 
   return platforms;
 }
+
+console.log(`\n[ChatBot]: Starting up! (${config.version})`);
 
 const flarie = new Flarie({
   platforms: getPlatforms(),
