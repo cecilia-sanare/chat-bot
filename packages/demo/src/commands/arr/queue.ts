@@ -6,6 +6,8 @@ import { Sonarr } from '../../services/sonarr';
 
 export function addQueueCommand(flarie: Flarie, sonarr: Sonarr, radarr: Radarr) {
   flarie.register('queue', async ({ message }) => {
+    await message.typing();
+
     const [sonarrQueue, sonarrWanted, radarrQueue, radarrWanted] = await Promise.all([
       sonarr.getEntireQueue(),
       sonarr.getEntireWanted(),
