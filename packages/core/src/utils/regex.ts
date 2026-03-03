@@ -1,6 +1,9 @@
 export function toRegExpFunction(message: string): RegExpFunction {
-  const regex = new RegExp(`^${message.replaceAll(/{([^}]+)}/g, '(?<$1>[^\\s]+|"[^"]+")')}$`, 'i');
+  const conformedMessage = message
+    .replaceAll(/{\.{3}([^}]+)}/g, '(?<$1>.+)')
+    .replaceAll(/{([^}]+)}/g, '(?<$1>[^\\s]+|"[^"]+")');
 
+  const regex = new RegExp(`^${conformedMessage}$`, 'i');
   return (value: string) => {
     const result = regex.exec(value);
 

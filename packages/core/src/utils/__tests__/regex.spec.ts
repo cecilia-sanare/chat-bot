@@ -33,6 +33,28 @@ describe('Regex Utils', () => {
       });
     });
 
+    it('should support "..." variables', () => {
+      const exec = toRegExpFunction('set {...name}');
+
+      const [matches, groups] = exec('set Hello World');
+
+      expect(matches).toBeTrue();
+      expect(groups).toEqual({
+        name: 'Hello World',
+      });
+    });
+
+    it('should support quotes with "..." variables', () => {
+      const exec = toRegExpFunction('set {...name}');
+
+      const [matches, groups] = exec('set "Hello World"');
+
+      expect(matches).toBeTrue();
+      expect(groups).toEqual({
+        name: 'Hello World',
+      });
+    });
+
     it('should support multiple variables', () => {
       const exec = toRegExpFunction('say {hello} {world}');
 

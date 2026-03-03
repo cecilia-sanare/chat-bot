@@ -90,7 +90,7 @@ if (defined.sonarr(config.sonarr) && defined.radarr(config.radarr)) {
     [Radarr.MovieStatus.TO_BE_ANNOUNCED]: '🎤 Announced',
   };
 
-  flarie.register('lookup {name}', async ({ message, args }) => {
+  flarie.register('lookup {...name}', async ({ message, args }) => {
     const { name } = args;
 
     if (!name) return;
