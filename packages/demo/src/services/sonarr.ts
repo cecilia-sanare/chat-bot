@@ -83,7 +83,7 @@ export class Sonarr {
   }
 
   async lookup(term: string) {
-    return await rfetch<Sonarr.EpisodeResource[]>(join(this.#url, '/v3/series/lookup'), {
+    return await rfetch<Sonarr.SeriesResource[]>(join(this.#url, '/v3/series/lookup'), {
       params: {
         term,
       },
@@ -109,7 +109,14 @@ export namespace Sonarr {
     records: T[] | null;
   };
 
-  export type SeriesResource = {};
+  export type SeriesResource = {
+    id: number;
+    title: string | null;
+    status: SeriesStatus;
+    remotePoster: string | null;
+    tvdbId: string;
+    monitored: boolean;
+  };
 
   export type EpisodeResource = {
     id: number;
@@ -144,4 +151,11 @@ export namespace Sonarr {
       episodeNumber: number;
     };
   };
+
+  export enum SeriesStatus {
+    CONTINUING = 'continuing',
+    ENDED = 'ended',
+    UPCOMING = 'upcoming',
+    DELETED = 'deleted',
+  }
 }

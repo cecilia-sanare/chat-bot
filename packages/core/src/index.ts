@@ -19,7 +19,9 @@ export class Flarie {
         if (!processed_details) return;
 
         for (const command of this.#commands) {
-          await command.emit(processed_details);
+          const matches = await command.emit(processed_details);
+
+          if (matches) break;
         }
       });
     }

@@ -1,9 +1,9 @@
-import { Flarie } from '@flarie/core';
+import { Flarie, FlarieEmbed, FlarieOutgoingMessage } from '@flarie/core';
 import { Radarr } from '../../services/radarr';
 import { Sonarr } from '../../services/sonarr';
 
 export function addLookupCommand(flarie: Flarie, sonarr: Sonarr, radarr: Radarr) {
-  flarie.register('lookup {...name}', async ({ message, args }) => {
+  flarie.register('lookup movie {...name}', async ({ message, args }) => {
     const { name } = args;
 
     if (!name) return;
@@ -13,64 +13,145 @@ export function addLookupCommand(flarie: Flarie, sonarr: Sonarr, radarr: Radarr)
     const movies = await radarr.lookup(name);
     const [movie] = movies;
 
-    if (!movie) {
+    const embed = getMovieEmbed(movie);
+
+    if (!embed) {
       return await message.reply({
         content: 'Oops! We were unable to locate any movies with that name, sorry!',
       });
     }
 
-    if (movie.movieFile) {
-      return await message.reply({
-        embeds: [
-          {
-            color: '#53a653',
-            title: movie.title ?? undefined,
-            description: 'Now available on jellyfin!',
-            thumbnail: movie.remotePoster ?? undefined,
-            url: `https://www.themoviedb.org/movie/${movie.tmdbId}`,
-          },
-        ],
-      });
-    }
+    return await message.reply({
+      embeds: [embed],
+    });
+  });
 
-    if (movie.status === Radarr.MovieStatus.RELEASED) {
-      if (!movie.monitored) {
-        return await message.reply({
-          embeds: [
-            {
-              color: '#bb2124',
-              title: movie.title ?? undefined,
-              description: `Not currently monitored!`,
-              thumbnail: movie.remotePoster ?? undefined,
-              url: `https://www.themoviedb.org/movie/${movie.tmdbId}`,
-            },
-          ],
-        });
-      }
+  flarie.register('lookup show {...name}', async ({ message, args }) => {
+    const { name } = args;
 
+    if (!name) return;
+
+    await message.typing();
+
+    const shows = await sonarr.lookup(name);
+    const [show] = shows;
+
+    const embed = getShowEmbed(show);
+
+    if (!embed) {
       return await message.reply({
-        embeds: [
-          {
-            color: '#f0ad4e',
-            title: movie.title ?? undefined,
-            description: 'Actively being requested!',
-            thumbnail: movie.remotePoster ?? undefined,
-            url: `https://www.themoviedb.org/movie/${movie.tmdbId}`,
-          },
-        ],
+        content: 'Oops! We were unable to locate any shows with that name, sorry!',
       });
     }
 
     return await message.reply({
-      embeds: [
-        {
-          color: '#bb2124',
-          title: movie.title ?? undefined,
-          description: `Hasn't been released yet!`,
-          thumbnail: movie.remotePoster ?? undefined,
-          url: `https://www.themoviedb.org/movie/${movie.tmdbId}`,
-        },
-      ],
+      embeds: [embed],
     });
   });
+
+  flarie.register('lookup {...name}', async ({ message, args }) => {
+    const { name } = args;
+
+    if (!name) return;
+
+    await message.typing();
+
+    const [movies, shows] = await Promise.all([radarr.lookup(name), sonarr.lookup(name)]);
+    const [movie] = movies;
+    const [show] = shows;
+
+    const embeds = [getMovieEmbed(movie), getShowEmbed(show)].filter(Boolean) as FlarieEmbed[];
+
+    if (embeds.length === 0) {
+      return await message.reply({
+        content: 'Oops! We were unable to locate any movies or shows with that name, sorry!',
+      });
+    }
+
+    return await message.reply({
+      embeds,
+    });
+  });
+}
+
+export function getMovieEmbed(movie?: Radarr.MovieResource | undefined): FlarieEmbed | undefined {
+  if (!movie) return undefined;
+
+  const shared: FlarieEmbed = {
+    title: movie.title ?? undefined,
+    url: `https://www.themoviedb.org/movie/${movie.tmdbId}`,
+    thumbnail: movie.remotePoster ?? undefined,
+  };
+
+  if (movie.movieFile) {
+    return {
+      ...shared,
+      color: '#53a653',
+      description: 'Now available on jellyfin!',
+    };
+  }
+
+  if (movie.status === Radarr.MovieStatus.RELEASED) {
+    if (!movie.monitored) {
+      return {
+        ...shared,
+        color: '#bb2124',
+        description: `Not currently monitored!`,
+      };
+    }
+
+    return {
+      ...shared,
+      color: '#f0ad4e',
+      description: 'Has been requested!',
+    };
+  }
+
+  return {
+    ...shared,
+    color: '#bb2124',
+    description: `Hasn't been released yet!`,
+  };
+}
+
+export function getShowEmbed(show?: Sonarr.SeriesResource | undefined): FlarieEmbed | undefined {
+  if (!show) return undefined;
+
+  const shared: FlarieEmbed = {
+    title: show.title ?? undefined,
+    url: `https://www.thetvdb.com/?tab=series&id=${show.tvdbId}`,
+    thumbnail: show.remotePoster ?? undefined,
+  };
+
+  // if (movie.movieFile) {
+  //   return {
+  //     color: '#53a653',
+  //     title: movie.title ?? undefined,
+  //     description: 'Now available on jellyfin!',
+  //     thumbnail: movie.remotePoster ?? undefined,
+  //     url: `https://www.themoviedb.org/movie/${movie.tmdbId}`,
+  //   };
+  // }
+
+  if (show.status !== Sonarr.SeriesStatus.UPCOMING) {
+    if (!show.monitored) {
+      return {
+        ...shared,
+        color: '#bb2124',
+        description: `Not currently monitored!`,
+      };
+    }
+
+    return {
+      ...shared,
+      color: '#f0ad4e',
+      description: 'Has been requested!',
+    };
+  }
+
+  return {
+    ...shared,
+    color: '#bb2124',
+    description: `Hasn't been released yet!`,
+  };
 }

@@ -10,15 +10,17 @@ export class FlarieCommand {
     this.exec = toRegExpFunction(command);
   }
 
-  async emit(details: FlariePlatform.MessageListenerDetails) {
+  async emit(details: FlariePlatform.MessageListenerDetails): Promise<boolean> {
     const [matches, groups] = this.exec(details.message.content);
 
-    if (!matches) return;
+    if (!matches) return false;
 
     await this.callback({
       ...details,
       args: groups,
     });
+
+    return true;
   }
 }
 

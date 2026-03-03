@@ -1,5 +1,6 @@
 import { Flarie } from '@flarie/core';
 import { getConfig, setConfig } from '../services/config';
+import dedent from 'dedent';
 
 export function addConfigCommands(flarie: Flarie) {
   flarie.register('config', async ({ message }) => {
@@ -11,10 +12,10 @@ export function addConfigCommands(flarie: Flarie) {
       embeds: [
         {
           title: `Config`,
-          description: `
-        **Guild ID:** ${config.guild_id}
-        **Prefix:** ${config.prefix}
-      `,
+          description: dedent`
+            **Guild ID:** ${config.guild_id}
+            **Prefix:** ${config.prefix}
+          `,
         },
       ],
       ephemeral: true,
