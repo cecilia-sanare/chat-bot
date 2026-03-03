@@ -33,8 +33,7 @@ export function addLookupCommand(flarie: Flarie, sonarr: Sonarr, radarr: Radarr)
 
     await message.typing();
 
-    const shows = await sonarr.lookup(name);
-    const [show] = shows;
+    const show = await sonarr.lookup(name);
 
     const embed = getShowEmbed(show);
 
@@ -56,9 +55,8 @@ export function addLookupCommand(flarie: Flarie, sonarr: Sonarr, radarr: Radarr)
 
     await message.typing();
 
-    const [movies, shows] = await Promise.all([radarr.lookup(name), sonarr.lookup(name)]);
+    const [movies, show] = await Promise.all([radarr.lookup(name), sonarr.lookup(name)]);
     const [movie] = movies;
-    const [show] = shows;
 
     const embeds = [getMovieEmbed(movie), getShowEmbed(show)].filter(Boolean) as FlarieEmbed[];
 
@@ -117,21 +115,21 @@ export function getMovieEmbed(movie?: Radarr.MovieResource | undefined): FlarieE
 export function getShowEmbed(show?: Sonarr.SeriesResource | undefined): FlarieEmbed | undefined {
   if (!show) return undefined;
 
+  const image = show.images.find(({ coverType }) => coverType === 'poster');
+
   const shared: FlarieEmbed = {
     title: show.title ?? undefined,
     url: `https://www.thetvdb.com/?tab=series&id=${show.tvdbId}`,
-    thumbnail: show.remotePoster ?? undefined,
+    thumbnail: image?.remoteUrl ?? undefined,
   };
 
-  // if (movie.movieFile) {
-  //   return {
-  //     color: '#53a653',
-  //     title: movie.title ?? undefined,
-  //     description: 'Now available on jellyfin!',
-  //     thumbnail: movie.remotePoster ?? undefined,
-  //     url: `https://www.themoviedb.org/movie/${movie.tmdbId}`,
-  //   };
-  // }
+  if (show.statistics.episodeCount > 0 && show.statistics.episodeCount === show.statistics.episodeFileCount) {
+    return {
+      ...shared,
+      color: '#53a653',
+      description: 'Now available on jellyfin!',
+    };
+  }
 
   if (show.status !== Sonarr.SeriesStatus.UPCOMING) {
     if (!show.monitored) {

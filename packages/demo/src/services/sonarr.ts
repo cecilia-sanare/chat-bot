@@ -83,10 +83,22 @@ export class Sonarr {
   }
 
   async lookup(term: string) {
-    return await rfetch<Sonarr.SeriesResource[]>(join(this.#url, '/v3/series/lookup'), {
+    const [show] = await rfetch<Sonarr.SeriesResource[]>(join(this.#url, '/v3/series/lookup'), {
       params: {
         term,
       },
+      headers: {
+        'X-Api-Key': this.#token,
+      },
+    });
+
+    if (!show) return undefined;
+
+    return this.getShowById(show.id);
+  }
+
+  async getShowById(id: number) {
+    return await rfetch<Sonarr.SeriesResource>(join(this.#url, `/v3/series/${id}`), {
       headers: {
         'X-Api-Key': this.#token,
       },
@@ -116,6 +128,15 @@ export namespace Sonarr {
     remotePoster: string | null;
     tvdbId: string;
     monitored: boolean;
+    images: {
+      coverType: 'banner' | 'poster' | 'fanart' | 'clearlogo';
+      url: string;
+      remoteUrl: string;
+    }[];
+    statistics: {
+      episodeFileCount: number;
+      episodeCount: number;
+    };
   };
 
   export type EpisodeResource = {
