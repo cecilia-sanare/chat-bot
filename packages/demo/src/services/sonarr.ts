@@ -154,6 +154,7 @@ export namespace Sonarr {
       id: number;
       title: string | null;
       titleSlug: string;
+      status: SeriesStatus;
     };
   };
 
