@@ -5,7 +5,7 @@ import { getConfig } from './services/config';
 import { config, defined } from './config';
 import { addConfigCommands } from './commands/config';
 import { addArrCommands } from './commands/arr';
-import { addUptimeCommand } from './commands/uptime';
+import { addInfoCommand } from './commands/info';
 
 export function getPlatforms() {
   const platforms: FlariePlatform[] = [];
@@ -79,5 +79,5 @@ flarie.prefix(async (message) => {
 // });
 
 addConfigCommands(flarie);
-addUptimeCommand(flarie);
+addInfoCommand(flarie);
 addArrCommands(flarie);
