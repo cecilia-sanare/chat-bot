@@ -1,6 +1,7 @@
 import { Flarie, FlarieEmbed, FlarieOutgoingMessage } from '@flarie/core';
 import { Radarr } from '../../services/radarr';
 import { Sonarr } from '../../services/sonarr';
+import { config } from '../../config';
 
 export function addLookupCommand(flarie: Flarie, sonarr: Sonarr, radarr: Radarr) {
   flarie.register('lookup movie {...name}', async ({ message, args }) => {
@@ -96,6 +97,7 @@ export function getMovieEmbed(movie?: Radarr.MovieResource | undefined): FlarieE
         ...shared,
         color: '#bb2124',
         description: `Not currently monitored!`,
+        url: movie.title ? `${config.radarr.url}/add/new?term=${encodeURIComponent(movie.title)}` : shared.title,
       };
     }
 
@@ -139,6 +141,7 @@ export function getShowEmbed(show?: Sonarr.SeriesResource | undefined): FlarieEm
         ...shared,
         color: '#bb2124',
         description: `Not currently monitored!`,
+        url: show.title ? `${config.sonarr.url}/add/new?term=${encodeURIComponent(show.title)}` : shared.title,
       };
     }
 
