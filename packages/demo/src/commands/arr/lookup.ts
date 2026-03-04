@@ -76,6 +76,7 @@ export function getMovieEmbed(movie?: Radarr.MovieResource | undefined): FlarieE
   if (!movie) return undefined;
 
   const shared: FlarieEmbed = {
+    author: '🎬️ Movie',
     title: movie.title ?? undefined,
     url: `https://www.themoviedb.org/movie/${movie.tmdbId}`,
     thumbnail: movie.remotePoster ?? undefined,
@@ -118,6 +119,7 @@ export function getShowEmbed(show?: Sonarr.SeriesResource | undefined): FlarieEm
   const image = show.images.find(({ coverType }) => coverType === 'poster');
 
   const shared: FlarieEmbed = {
+    author: '📺 Show',
     title: show.title ?? undefined,
     url: `https://www.thetvdb.com/?tab=series&id=${show.tvdbId}`,
     thumbnail: image?.remoteUrl ?? undefined,
@@ -132,7 +134,7 @@ export function getShowEmbed(show?: Sonarr.SeriesResource | undefined): FlarieEm
   }
 
   if (show.status !== Sonarr.SeriesStatus.UPCOMING) {
-    if (!show.monitored) {
+    if (!show.id) {
       return {
         ...shared,
         color: '#bb2124',

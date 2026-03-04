@@ -150,6 +150,7 @@ export class DiscordPlatform extends FlariePlatform {
         image: typeof embed.image === 'string' ? { url: embed.image } : embed.image,
         thumbnail: typeof embed.thumbnail === 'string' ? { url: embed.thumbnail } : embed.thumbnail,
         footer: typeof embed.footer === 'string' ? { text: embed.footer } : embed.footer,
+        author: typeof embed.author === 'string' ? { name: embed.author } : embed.author,
       })),
     };
   }

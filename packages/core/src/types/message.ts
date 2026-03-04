@@ -34,6 +34,13 @@ export type FlarieEmbed = {
         icon_url?: string;
       }
     | string;
+  author?: string | FlarieEmbedAuthor;
+};
+
+export type FlarieEmbedAuthor = {
+  name: string;
+  icon_url?: string;
+  url?: string;
 };
 
 export type FlarieEmbedMedia = {

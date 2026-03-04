@@ -93,6 +93,7 @@ export class Sonarr {
     });
 
     if (!show) return undefined;
+    if (!show.id) return show;
 
     return this.getShowById(show.id);
   }
@@ -122,7 +123,7 @@ export namespace Sonarr {
   };
 
   export type SeriesResource = {
-    id: number;
+    id?: number;
     title: string | null;
     status: SeriesStatus;
     remotePoster: string | null;

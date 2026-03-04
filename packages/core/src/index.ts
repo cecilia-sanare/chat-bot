@@ -19,9 +19,23 @@ export class Flarie {
         if (!processed_details) return;
 
         for (const command of this.#commands) {
-          const matches = await command.emit(processed_details);
+          try {
+            const matches = await command.emit(processed_details);
 
-          if (matches) break;
+            if (matches) break;
+          } catch (error) {
+            await details.message.reply({
+              embeds: [
+                {
+                  color: '#bb2124',
+                  title: 'Error!',
+                  description:
+                    error instanceof Error && error.message ? error.message : 'An unexpected error occurred!',
+                },
+              ],
+            });
+            break;
+          }
         }
       });
     }
