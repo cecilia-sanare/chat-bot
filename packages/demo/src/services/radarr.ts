@@ -116,6 +116,7 @@ export namespace Radarr {
     monitored: boolean;
     isAvailable: boolean;
     movieFile?: MovieFile;
+    runtime?: number;
   };
 
   export type MovieFile = {

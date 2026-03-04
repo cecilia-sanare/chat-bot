@@ -134,10 +134,20 @@ export namespace Sonarr {
       url: string;
       remoteUrl: string;
     }[];
-    statistics: {
-      episodeFileCount: number;
-      episodeCount: number;
-    };
+    runtime?: number;
+    seasons: SeasonResource[];
+    statistics: StatisticsResource;
+  };
+
+  export type SeasonResource = {
+    seasonNumber: number;
+    monitored: boolean;
+    statistics: StatisticsResource;
+  };
+
+  export type StatisticsResource = {
+    episodeFileCount: number;
+    episodeCount: number;
   };
 
   export type EpisodeResource = {

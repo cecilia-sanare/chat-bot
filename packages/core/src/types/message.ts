@@ -35,6 +35,7 @@ export type FlarieEmbed = {
       }
     | string;
   author?: string | FlarieEmbedAuthor;
+  fields?: FlarieEmbedField[];
 };
 
 export type FlarieEmbedAuthor = {
@@ -47,6 +48,12 @@ export type FlarieEmbedMedia = {
   url: string;
   width?: number;
   height?: number;
+};
+
+export type FlarieEmbedField = {
+  name: string;
+  value: string;
+  inline?: boolean;
 };
 
 export type FlarieUser = {
