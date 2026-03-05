@@ -44,12 +44,12 @@ export class Radarr {
     return [...records, ...results.reduce<Radarr.MovieResource[]>((output, { records }) => output.concat(records), [])];
   }
 
-  async getQueue(page: number = 1, pageSize: number = 100) {
+  async getQueue(params?: Radarr.QueueParams) {
     const result = await rfetch<Radarr.Paginated<Radarr.QueueResource>>(join(this.#url, '/v3/queue'), {
       params: {
-        page,
-        pageSize,
-        includeMovie: true,
+        page: 1,
+        pageSize: 100,
+        ...params,
       },
       headers: {
         'X-Api-Key': this.#token,
@@ -62,8 +62,8 @@ export class Radarr {
     };
   }
 
-  async getEntireQueue(): Promise<Radarr.QueueResource[]> {
-    const { page, totalRecords, records, pageSize } = await this.getQueue();
+  async getEntireQueue(params?: Omit<Radarr.QueueParams, 'page' | 'pageSize'>): Promise<Radarr.QueueResource[]> {
+    const { page, totalRecords, records, pageSize } = await this.getQueue(params);
 
     const remainingRecords = totalRecords - records.length;
 
@@ -72,7 +72,13 @@ export class Radarr {
     const results = await Promise.all(
       Array(pages)
         .fill(null)
-        .map((_, i) => this.getQueue(i + page + 1, pageSize))
+        .map((_, i) =>
+          this.getQueue({
+            ...params,
+            page: i + page + 1,
+            pageSize,
+          })
+        )
     );
 
     return [...records, ...results.reduce<Radarr.QueueResource[]>((output, { records }) => output.concat(records), [])];
@@ -144,5 +150,13 @@ export namespace Radarr {
       title?: string;
       titleSlug?: string;
     };
+    timeleft?: string;
+  };
+
+  export type QueueParams = {
+    page?: number;
+    pageSize?: number;
+    movieIds?: number[];
+    includeMovie?: boolean;
   };
 }

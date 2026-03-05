@@ -2,6 +2,7 @@ import { Flarie, FlarieEmbed } from '@flarie/core';
 import { Radarr } from '../../services/radarr';
 import { Sonarr } from '../../services/sonarr';
 import { config } from '../../config';
+import { humanizeDuration } from '../../utils/humanize';
 
 export function addLookupCommand(flarie: Flarie, sonarr: Sonarr, radarr: Radarr) {
   flarie.register('lookup movie {...name}', async ({ message, args }) => {
@@ -11,10 +12,7 @@ export function addLookupCommand(flarie: Flarie, sonarr: Sonarr, radarr: Radarr)
 
     await message.typing();
 
-    const movies = await radarr.lookup(name);
-    const [movie] = movies;
-
-    const embed = getMovieEmbed(movie);
+    const embed = await getMovieEmbed(radarr, name);
 
     if (!embed) {
       return await message.reply({
@@ -34,9 +32,7 @@ export function addLookupCommand(flarie: Flarie, sonarr: Sonarr, radarr: Radarr)
 
     await message.typing();
 
-    const show = await sonarr.lookup(name);
-
-    const embed = getShowEmbed(show);
+    const embed = await getShowEmbed(sonarr, name);
 
     if (!embed) {
       return await message.reply({
@@ -56,10 +52,8 @@ export function addLookupCommand(flarie: Flarie, sonarr: Sonarr, radarr: Radarr)
 
     await message.typing();
 
-    const [movies, show] = await Promise.all([radarr.lookup(name), sonarr.lookup(name)]);
-    const [movie] = movies;
-
-    const embeds = [getMovieEmbed(movie), getShowEmbed(show)].filter(Boolean) as FlarieEmbed[];
+    const rawEmbeds = await Promise.all([getMovieEmbed(radarr, name), getShowEmbed(sonarr, name)]);
+    const embeds = rawEmbeds.filter(Boolean) as FlarieEmbed[];
 
     if (embeds.length === 0) {
       return await message.reply({
@@ -73,8 +67,17 @@ export function addLookupCommand(flarie: Flarie, sonarr: Sonarr, radarr: Radarr)
   });
 }
 
-export function getMovieEmbed(movie?: Radarr.MovieResource | undefined): FlarieEmbed | undefined {
+export async function getMovieEmbed(radarr: Radarr, name: string): Promise<FlarieEmbed | undefined> {
+  const movies = await radarr.lookup(name);
+  const [movie] = movies;
+
   if (!movie) return undefined;
+
+  const queue = movie.id
+    ? await radarr.getEntireQueue({
+        movieIds: [movie.id],
+      })
+    : [];
 
   const shared: FlarieEmbed = {
     author: '🎬️ Movie',
@@ -91,7 +94,7 @@ export function getMovieEmbed(movie?: Radarr.MovieResource | undefined): FlarieE
       fields: [
         {
           name: 'Runtime',
-          value: movie.runtime ? humanizeDuration(movie.runtime) : 'Unknown',
+          value: humanizeDuration((movie.runtime ?? 0) * 60) ?? '_Unknown_',
           inline: true,
         },
       ],
@@ -112,6 +115,13 @@ export function getMovieEmbed(movie?: Radarr.MovieResource | undefined): FlarieE
       ...shared,
       color: '#f0ad4e',
       description: 'Has been requested!',
+      fields: [
+        {
+          name: 'Time Remaining',
+          value: humanizeDuration(computeTimeRemaining(queue)) ?? '_Not Started_',
+          inline: true,
+        },
+      ],
     };
   }
 
@@ -122,8 +132,16 @@ export function getMovieEmbed(movie?: Radarr.MovieResource | undefined): FlarieE
   };
 }
 
-export function getShowEmbed(show?: Sonarr.SeriesResource | undefined): FlarieEmbed | undefined {
+export async function getShowEmbed(sonarr: Sonarr, name: string): Promise<FlarieEmbed | undefined> {
+  let show = await sonarr.lookup(name);
+
   if (!show) return undefined;
+
+  const queue = show.id
+    ? await sonarr.getEntireQueue({
+        seriesIds: [show.id],
+      })
+    : [];
 
   const image = show.images.find(({ coverType }) => coverType === 'poster');
 
@@ -142,12 +160,12 @@ export function getShowEmbed(show?: Sonarr.SeriesResource | undefined): FlarieEm
       fields: [
         {
           name: 'Runtime',
-          value: show.runtime ? humanizeDuration(show.runtime) : 'Unknown',
+          value: humanizeDuration((show.runtime ?? 0) * 60) ?? '_Unknown_',
           inline: true,
         },
         {
           name: 'Total Runtime',
-          value: getTotalRuntime(show) ?? 'Unknown',
+          value: getTotalRuntime(show) ?? '_Unknown_',
           inline: true,
         },
         {
@@ -180,6 +198,13 @@ export function getShowEmbed(show?: Sonarr.SeriesResource | undefined): FlarieEm
       ...shared,
       color: '#f0ad4e',
       description: 'Has been requested!',
+      fields: [
+        {
+          name: 'Time Remaining',
+          value: humanizeDuration(computeTimeRemaining(queue)) ?? '_Not Started_',
+          inline: true,
+        },
+      ],
     };
   }
 
@@ -195,22 +220,21 @@ export function getTotalRuntime(show: Sonarr.SeriesResource): string | undefined
 
   const total = show.seasons.reduce((output, season) => (output += season.statistics.episodeCount * show.runtime!), 0);
 
-  return humanizeDuration(total);
+  return humanizeDuration(total * 60);
 }
 
-export function humanizeDuration(value: number): string {
-  const minutes = value % 60;
-  const hours = (value - minutes) / 60;
+export function computeTimeRemaining(queue: Array<Radarr.QueueResource | Sonarr.QueueResource>): number {
+  return queue.reduce((output, item) => {
+    const timeRemaining = timeLeftToSeconds(item.timeleft);
 
-  const output: string[] = [];
+    return timeRemaining && timeRemaining > output ? timeRemaining : output;
+  }, 0);
+}
 
-  if (hours) {
-    output.push(`${hours}h`);
-  }
+export function timeLeftToSeconds(timeleft?: string): number | undefined {
+  if (!timeleft) return undefined;
 
-  if (minutes) {
-    output.push(`${minutes}m`);
-  }
+  const [hours, minutes, seconds] = timeleft.split(':');
 
-  return output.join(' ');
+  return Number(hours) * 60 * 60 + Number(minutes) * 60 + Number(seconds);
 }

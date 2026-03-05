@@ -47,13 +47,12 @@ export class Sonarr {
     ];
   }
 
-  async getQueue(page: number = 1, pageSize: number = 100) {
+  async getQueue(params?: Sonarr.QueueParams) {
     const result = await rfetch<Sonarr.Paginated<Sonarr.QueueResource>>(join(this.#url, '/v3/queue'), {
       params: {
-        page,
-        pageSize,
-        includeSeries: true,
-        includeEpisode: true,
+        page: 1,
+        pageSize: 100,
+        ...params,
       },
       headers: {
         'X-Api-Key': this.#token,
@@ -66,8 +65,8 @@ export class Sonarr {
     };
   }
 
-  async getEntireQueue(): Promise<Sonarr.QueueResource[]> {
-    const { page, totalRecords, records, pageSize } = await this.getQueue();
+  async getEntireQueue(params?: Omit<Sonarr.QueueParams, 'page' | 'pageSize'>): Promise<Sonarr.QueueResource[]> {
+    const { page, totalRecords, records, pageSize } = await this.getQueue(params);
 
     const remainingRecords = totalRecords - records.length;
 
@@ -76,7 +75,13 @@ export class Sonarr {
     const results = await Promise.all(
       Array(pages)
         .fill(null)
-        .map((_, i) => this.getQueue(i + page + 1, pageSize))
+        .map((_, i) =>
+          this.getQueue({
+            ...params,
+            page: i + page + 1,
+            pageSize,
+          })
+        )
     );
 
     return [...records, ...results.reduce<Sonarr.QueueResource[]>((output, { records }) => output.concat(records), [])];
@@ -183,6 +188,7 @@ export namespace Sonarr {
       seasonNumber: number;
       episodeNumber: number;
     };
+    timeleft?: string;
   };
 
   export enum SeriesStatus {
@@ -191,4 +197,12 @@ export namespace Sonarr {
     UPCOMING = 'upcoming',
     DELETED = 'deleted',
   }
+
+  export type QueueParams = {
+    page?: number;
+    pageSize?: number;
+    seriesIds?: number[];
+    includeSeries?: boolean;
+    includeEpisode?: boolean;
+  };
 }

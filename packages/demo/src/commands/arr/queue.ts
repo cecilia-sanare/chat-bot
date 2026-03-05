@@ -34,7 +34,12 @@ const MOVIE_STATUS_ORDER: Radarr.MovieStatus[] = [
 ];
 
 export async function getMoviesEmbed(radarr: Radarr): Promise<FlarieEmbed> {
-  const [queue, wanted] = await Promise.all([radarr.getEntireQueue(), radarr.getEntireWanted()]);
+  const [queue, wanted] = await Promise.all([
+    radarr.getEntireQueue({
+      includeMovie: true,
+    }),
+    radarr.getEntireWanted(),
+  ]);
 
   const upgrades = queue.filter((item) => wanted.every((movie) => movie.id !== item.movieId));
 
@@ -120,7 +125,13 @@ const SERIES_STATUS_ORDER: Sonarr.SeriesStatus[] = [
 ];
 
 export async function getShowsEmbed(sonarr: Sonarr): Promise<FlarieEmbed> {
-  const [queue, wanted] = await Promise.all([sonarr.getEntireQueue(), sonarr.getEntireWanted()]);
+  const [queue, wanted] = await Promise.all([
+    sonarr.getEntireQueue({
+      includeSeries: true,
+      includeEpisode: true,
+    }),
+    sonarr.getEntireWanted(),
+  ]);
 
   const episodes = wanted
     .map((episode) => ({
