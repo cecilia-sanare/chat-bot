@@ -13,7 +13,7 @@ export function addInfoCommand(flarie: Flarie) {
           fields: [
             {
               name: 'Version',
-              value: config.version ?? 'Invalid Version',
+              value: config.short_version ?? 'Invalid Version',
               inline: true,
             },
             {

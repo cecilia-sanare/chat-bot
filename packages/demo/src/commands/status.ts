@@ -23,7 +23,11 @@ export function addStatusCommands(flarie: Flarie) {
     await message.reply({
       embeds: [
         {
-          title: `ChatBot v${config.version}`,
+          title: `ChatBot v${config.short_version}`,
+          url:
+            config.version === 'local'
+              ? undefined
+              : `https://github.com/cecilia-sanare/chat-bot/tree/${config.version}`,
           description: `Hey! <@${bot?.id}> here with a status report!`,
           fields: [
             ...flarie.platforms
