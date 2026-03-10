@@ -6,6 +6,7 @@ import { config, defined } from './config';
 import { addConfigCommands } from './commands/config';
 import { addArrCommands } from './commands/arr';
 import { addInfoCommand } from './commands/info';
+import { addStatusCommands } from './commands/status';
 
 export function getPlatforms() {
   const platforms: FlariePlatform[] = [];
@@ -78,6 +79,7 @@ flarie.prefix(async (message) => {
 //   // });
 // });
 
-addConfigCommands(flarie);
+addStatusCommands(flarie);
 addInfoCommand(flarie);
+addConfigCommands(flarie);
 addArrCommands(flarie);

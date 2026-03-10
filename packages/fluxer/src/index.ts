@@ -9,6 +9,8 @@ import {
 } from '@flarie/core';
 
 export class FluxerPlatform extends FlariePlatform {
+  override name: string = 'Fluxer';
+
   #client: Client;
   #bot?: FlarieUser;
 
@@ -49,6 +51,22 @@ export class FluxerPlatform extends FlariePlatform {
         },
         bot: this.#bot,
       });
+    });
+
+    this.#client.on(Events.Ready, () => {
+      this.status = FlariePlatform.Status.READY;
+    });
+
+    // this.#client.on(Events.ShardDisconnect, () => {
+    //   this.status = FlariePlatform.Status.DISCONNECTED;
+    // });
+
+    // this.#client.on(Events.ShardReconnecting, () => {
+    //   this.status = FlariePlatform.Status.RECONNECTING;
+    // });
+
+    this.#client.on(Events.Resumed, () => {
+      this.status = FlariePlatform.Status.RESUMED;
     });
 
     this.#client.on(Events.Ready, () => {

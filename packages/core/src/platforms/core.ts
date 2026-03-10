@@ -1,6 +1,10 @@
 import type { FlarieIncomingMessage, FlarieOutgoingMessage, FlarieUser } from '../types/message';
 
 export abstract class FlariePlatform {
+  #status = FlariePlatform.Status.NOT_STARTED;
+  #lastStatusChangeAt: number = Date.now();
+  abstract name: string;
+
   private listeners: FlariePlatform.Listeners = {
     message: [],
   };
@@ -32,6 +36,19 @@ export abstract class FlariePlatform {
     await Promise.all(listeners.map((listener) => listener.call(undefined, ...args)));
   }
 
+  get status() {
+    return this.#status;
+  }
+
+  set status(status) {
+    this.#status = status;
+    this.#lastStatusChangeAt = Date.now();
+  }
+
+  get lastStatusChangeAt() {
+    return this.#lastStatusChangeAt;
+  }
+
   abstract send(id: string, message: FlarieOutgoingMessage): Promise<string>;
   abstract mention(id?: string): string | undefined;
 }
@@ -49,4 +66,33 @@ export namespace FlariePlatform {
     message: FlarieIncomingMessage;
     bot?: FlarieUser;
   };
+
+  export enum Status {
+    /**
+     * The platform hasn't even attempted to login yet.
+     */
+    NOT_STARTED,
+
+    /**
+     * The platform was disconnected.
+     */
+    DISCONNECTED,
+
+    /**
+     * The platform is connecting for the first time!
+     */
+    CONNECTING,
+
+    /**
+     * The platform is reconnecting
+     */
+    RECONNECTING,
+
+    RESUMED,
+
+    /**
+     * The platform is connected
+     */
+    READY,
+  }
 }

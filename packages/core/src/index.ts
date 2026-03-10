@@ -3,16 +3,16 @@ import { FlarieCommand } from './command';
 import type { FlarieIncomingMessage } from './types/message';
 
 export class Flarie {
-  #platforms: FlariePlatform[];
+  platforms: FlariePlatform[];
   #options: Omit<Flarie.Options, 'platforms'>;
   #commands: FlarieCommand[] = [];
   #prefix: Flarie.Prefix = '!';
 
   constructor({ platforms, ...options }: Flarie.Options) {
     this.#options = options;
-    this.#platforms = platforms;
+    this.platforms = platforms;
 
-    for (const platform of this.#platforms) {
+    for (const platform of this.platforms) {
       platform.on('message', async (details) => {
         const processed_details = await this.process(details);
 

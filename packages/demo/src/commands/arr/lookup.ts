@@ -3,6 +3,7 @@ import { Radarr } from '../../services/radarr';
 import { Sonarr } from '../../services/sonarr';
 import { config } from '../../config';
 import { humanizeDuration } from '../../utils/humanize';
+import { EMPTY_SPACE } from '../../constants/characters';
 
 export function addLookupCommand(flarie: Flarie, sonarr: Sonarr, radarr: Radarr) {
   flarie.register('lookup movie {...name}', async ({ message, args }) => {
@@ -169,8 +170,8 @@ export async function getShowEmbed(sonarr: Sonarr, name: string): Promise<Flarie
           inline: true,
         },
         {
-          name: '‎ ',
-          value: '‎ ',
+          name: EMPTY_SPACE,
+          value: EMPTY_SPACE,
           inline: true,
         },
         ...show.seasons

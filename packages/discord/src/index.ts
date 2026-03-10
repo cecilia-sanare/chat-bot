@@ -18,6 +18,8 @@ import {
 } from '@flarie/core';
 
 export class DiscordPlatform extends FlariePlatform {
+  override name: string = 'Discord';
+
   #client: Client;
   #bot?: FlarieUser;
 
@@ -83,6 +85,22 @@ export class DiscordPlatform extends FlariePlatform {
         message: incomingFlarieMessage,
         bot: this.#bot,
       });
+    });
+
+    this.#client.on(Events.ClientReady, () => {
+      this.status = FlariePlatform.Status.READY;
+    });
+
+    this.#client.on(Events.ShardDisconnect, () => {
+      this.status = FlariePlatform.Status.DISCONNECTED;
+    });
+
+    this.#client.on(Events.ShardReconnecting, () => {
+      this.status = FlariePlatform.Status.RECONNECTING;
+    });
+
+    this.#client.on(Events.ShardResume, () => {
+      this.status = FlariePlatform.Status.RESUMED;
     });
 
     const interval = setInterval(() => {
