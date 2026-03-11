@@ -1,5 +1,9 @@
 # chat-bot
 
+## Prerequisites
+
+- [Bun](https://bun.sh/)
+
 ## Quick Start (Shell)
 
 ### Shell
