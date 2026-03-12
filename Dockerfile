@@ -6,7 +6,7 @@ ENV VERSION=$GIT_SHA
 
 # RUN apk add libc6-compat
 # RUN apk add python3 py3-pip pipx
-RUN apt-get update && apt-get install -y python3 python3-pip pipx && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y python3 python3-pip pipx ffmpeg && rm -rf /var/lib/apt/lists/*
 RUN pipx install tiddl
 
 RUN mkdir -p /app /data
