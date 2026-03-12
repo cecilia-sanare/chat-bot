@@ -1,3 +1,4 @@
+# TODO: Look into swapping back to alpine
 # FROM oven/bun:1-alpine
 FROM oven/bun:latest
 ARG GIT_SHA=local
@@ -15,6 +16,7 @@ COPY . /app/.
 RUN bun ci
 RUN bun run build
 
+ENV PATH="/root/.local/bin:$PATH"
 ENV DB_URL="file:/data/local.db"
 ENV NODE_ENV="production"
 
