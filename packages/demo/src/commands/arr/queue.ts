@@ -80,7 +80,7 @@ export async function getMoviesEmbed(radarr: Radarr): Promise<FlarieEmbed> {
   if (upgrades.length > 0) {
     sections.push(dedent`
       **⚙️ Upgrades**
-      ${upgrades.map((item) => `- 🟢 [${item.movie?.title}](${config.radarr.url}/movie/${item.movie?.titleSlug})`)}
+      ${upgrades.map((item) => `- 🟢 [${item.movie?.title}](${config.radarr.url}/movie/${item.movie?.titleSlug})`).join('\n')}
     `);
   }
 
