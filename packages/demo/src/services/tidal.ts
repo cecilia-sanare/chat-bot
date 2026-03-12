@@ -5,7 +5,7 @@ import { ReadStream } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 import { join } from 'path';
 
-const SONGS_DIR = join(process.cwd(), '../../', 'songs');
+const SONGS_DIR = join(import.meta.dir, 'songs');
 
 export class Tidal {
   #clientId: string;
@@ -131,35 +131,54 @@ export class Tidal {
     if (existsSync(outputs.ogg)) return outputs.ogg;
 
     if (!existsSync(outputs.flac)) {
-      await new Promise<void>((resolve, reject) => {
-        const dl = spawn(
-          'tiddl',
-          ['download', ['-p', SONGS_DIR], ['-o', '{item.id}'], ['url', `https://tidal.com/track/${id}/u`]].flat(),
-          {
-            env: {
-              ...process.env,
-              TIDDL_AUTH: `${this.#clientId};${this.#clientSecret}`,
-            },
-          }
-        );
-        dl.on('close', (code) => (code === 0 ? resolve() : reject()));
-      });
+      console.log('Downloading...');
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const dl = spawn(
+            'tiddl',
+            ['download', ['-p', SONGS_DIR], ['-o', '{item.id}'], ['url', `https://tidal.com/track/${id}/u`]].flat(),
+            {
+              env: {
+                ...process.env,
+                TIDDL_AUTH: `${this.#clientId};${this.#clientSecret}`,
+              },
+            }
+          );
+          dl.on('close', (code) => (code === 0 ? resolve() : reject()));
+          dl.on('error', reject);
+        });
+      } catch (error) {
+        console.error(error);
+        throw new Error('Failed to download song');
+      }
+      console.log('Downloading success!');
     }
 
-    await new Promise<void>((resolve, reject) => {
-      const transcode = spawn(
-        'ffmpeg',
-        [
-          ['-i', outputs.flac],
-          ['-c:a', 'libopus'],
-          ['-b:a', '128k'],
-          ['-ar', '48000'],
-          ['-filter:a', 'volume=0.02'],
-          outputs.ogg,
-        ].flat()
-      );
-      transcode.on('close', (code) => (code === 0 ? resolve() : reject()));
-    });
+    console.log('Transcoding...');
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const transcode = spawn(
+          'ffmpeg',
+          [
+            ['-i', outputs.flac],
+            ['-c:a', 'libopus'],
+            ['-b:a', '128k'],
+            ['-ar', '48000'],
+            ['-filter:a', 'volume=0.02'],
+            outputs.ogg,
+          ].flat()
+        );
+        transcode.on('close', (code) => (code === 0 ? resolve() : reject()));
+        transcode.on('error', reject);
+        transcode.on('exit', (code) => (code === 0 ? resolve() : reject()));
+      });
+    } catch (error) {
+      console.error(error);
+      throw new Error('Failed to transcode song');
+    }
+
+    console.log('Transcoding success!');
 
     await unlink(outputs.flac);
 
