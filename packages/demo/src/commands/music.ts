@@ -94,6 +94,10 @@ export function addMusicCommands(flarie: Flarie) {
     const track = music.next(message.guildId);
 
     if (!track) {
+      if (platform.playing(message.guildId)) {
+        await platform.stop(message.guildId);
+      }
+
       return await message.reply({
         content: 'Theres nothing left in the queue!',
       });
