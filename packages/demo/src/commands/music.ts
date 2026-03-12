@@ -9,10 +9,10 @@ export function addMusicCommands(flarie: Flarie) {
   const tidal = new Tidal(config.tidal);
   const music = new MusicManager();
 
-  const next = async (guildId: string | undefined, platform: FlariePlatform) => {
+  const next = async (platform: FlariePlatform, guildId: string | undefined, externalTrack?: Tidal.Track) => {
     if (!guildId) return;
 
-    const track = music.next(guildId);
+    const track = externalTrack ?? music.next(guildId);
 
     if (!track) return;
 
@@ -63,7 +63,7 @@ export function addMusicCommands(flarie: Flarie) {
       });
     });
 
-    platform.on('audio:idle', ({ guildId }) => next(guildId, platform));
+    platform.on('audio:idle', ({ guildId }) => next(platform, guildId));
   }
 
   flarie.register('join', async ({ message, platform }) => {
@@ -103,7 +103,7 @@ export function addMusicCommands(flarie: Flarie) {
       });
     }
 
-    await next(message.guildId, platform);
+    await next(platform, message.guildId, track);
   });
 
   flarie.register('queue', async ({ message }) => {
@@ -168,7 +168,7 @@ export function addMusicCommands(flarie: Flarie) {
       music.queue(message.guildId, track);
 
       if (!platform.playing(message.guildId)) {
-        return await next(message.guildId, platform);
+        return await next(platform, message.guildId);
       }
 
       await message.reply({

@@ -247,7 +247,10 @@ export class DiscordPlatform extends FlariePlatform {
   override async stop(guildId: string): Promise<void> {
     const player = this.#player(guildId);
 
-    player.stop();
+    if (player.stop()) {
+      player.removeAllListeners();
+      this.#players.delete(guildId);
+    }
   }
 
   override async pause(guildId: string): Promise<void> {
