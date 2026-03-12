@@ -5,6 +5,7 @@ import { ReadStream } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 import { join } from 'path';
 import { Tiddl } from './tiddl';
+import { transcode } from '../utils/tools';
 
 const SONGS_DIR = join(import.meta.dir, 'songs');
 
@@ -132,32 +133,7 @@ export class Tidal {
 
     const flac = await this.#tiddl.download(id);
 
-    console.log('Transcoding...');
-
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const transcode = spawn(
-          'ffmpeg',
-          [
-            ['-i', flac],
-            ['-c:a', 'libopus'],
-            ['-b:a', '128k'],
-            ['-ar', '48000'],
-            ['-filter:a', 'volume=0.02'],
-            ogg,
-          ].flat()
-        );
-        transcode.on('close', (code) => (code === 0 ? resolve() : reject()));
-        transcode.on('error', reject);
-        transcode.on('exit', (code) => (code === 0 ? resolve() : reject()));
-      });
-    } catch (error) {
-      console.error(error);
-      throw new Error('Failed to transcode song');
-    }
-
-    console.log('Transcoding success!');
-
+    await transcode(flac, ogg);
     await unlink(flac);
 
     return ogg;
