@@ -9,6 +9,7 @@ export abstract class FlariePlatform {
   private listeners: FlariePlatform.Listeners = {
     message: [],
     'audio:playing': [],
+    'audio:paused': [],
     'audio:idle': [],
   };
 
@@ -60,6 +61,9 @@ export abstract class FlariePlatform {
   abstract join(channelId: string): Promise<void>;
   abstract leave(guildId: string): Promise<boolean>;
   abstract play(guildId: string, stream: ReadStream): Promise<void>;
+  abstract stop(guildId: string): Promise<void>;
+  abstract pause(guildId: string): Promise<void>;
+  abstract unpause(guildId: string): Promise<void>;
   abstract playing(guildId: string): boolean;
 }
 
@@ -67,6 +71,7 @@ export namespace FlariePlatform {
   export type Listeners = {
     message: MessageListener[];
     'audio:playing': PlayingListener[];
+    'audio:paused': PausedListener[];
     'audio:idle': IdleListener[];
   };
 
@@ -81,6 +86,12 @@ export namespace FlariePlatform {
 
   export type PlayingListener = (details: PlayingListenerDetails) => void;
   export type PlayingListenerDetails = {
+    guildId: string;
+    channelId: string;
+  };
+
+  export type PausedListener = (details: PausedListenerDetails) => void;
+  export type PausedListenerDetails = {
     guildId: string;
     channelId: string;
   };

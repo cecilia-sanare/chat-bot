@@ -50,6 +50,19 @@ export function addMusicCommands(flarie: Flarie) {
       });
     });
 
+    platform.on('audio:paused', async ({ channelId }) => {
+      await platform.send(channelId, {
+        embeds: [
+          {
+            title: `Now Paused!`,
+            description: 'Music playback is now paused!',
+            footer: 'Type unpause to resume playback!',
+            color: '#53a653',
+          },
+        ],
+      });
+    });
+
     platform.on('audio:idle', ({ guildId }) => next(guildId, platform));
   }
 
@@ -137,6 +150,10 @@ export function addMusicCommands(flarie: Flarie) {
       return await message.reply(`Uh, oh! Looks like you're not currently in a voice channel!`);
     }
 
+    if (!platform.connected(message.guildId)) {
+      await platform.join(voiceChannelId);
+    }
+
     try {
       const [track] = await Promise.all([tidal.getTrack(url), tidal.download(url)]);
 
@@ -147,9 +164,6 @@ export function addMusicCommands(flarie: Flarie) {
       music.queue(message.guildId, track);
 
       if (!platform.playing(message.guildId)) {
-        if (!platform.connected(message.guildId)) {
-          await platform.join(voiceChannelId);
-        }
         return await next(message.guildId, platform);
       }
 
@@ -176,6 +190,18 @@ export function addMusicCommands(flarie: Flarie) {
       console.error(error);
       throw new Error('Failed to request the song!');
     }
+  });
+
+  flarie.register('pause', async ({ message, platform }) => {
+    if (!message.guildId) return;
+
+    await platform.pause(message.guildId);
+  });
+
+  flarie.register('unpause', async ({ message, platform }) => {
+    if (!message.guildId) return;
+
+    await platform.unpause(message.guildId);
   });
 }
 

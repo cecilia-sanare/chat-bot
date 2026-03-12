@@ -4,6 +4,7 @@ import { createReadStream, existsSync } from 'fs';
 import { ReadStream } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 import { join } from 'path';
+import { Tiddl } from './tiddl';
 
 const SONGS_DIR = join(import.meta.dir, 'songs');
 
@@ -11,10 +12,12 @@ export class Tidal {
   #clientId: string;
   #clientSecret: string;
   #token?: Tidal.Api.TokenResponse;
+  #tiddl: Tiddl;
 
   constructor({ clientId, clientSecret }: Tidal.Options) {
     this.#clientId = clientId;
     this.#clientSecret = clientSecret;
+    this.#tiddl = new Tiddl();
   }
 
   get credentials() {
@@ -122,37 +125,12 @@ export class Tidal {
 
     if (!id) throw new Error(`Invalid URL / ID: ${url}`);
 
-    const outputs = {
-      flac: this.file(id, 'flac'),
-      ogg: this.file(id, 'ogg'),
-    };
+    const ogg = this.file(id, 'ogg');
 
     // If we have it cached already bail early
-    if (existsSync(outputs.ogg)) return outputs.ogg;
+    if (existsSync(ogg)) return ogg;
 
-    if (!existsSync(outputs.flac)) {
-      console.log('Downloading...');
-      try {
-        await new Promise<void>((resolve, reject) => {
-          const dl = spawn(
-            'tiddl',
-            ['download', ['-p', SONGS_DIR], ['-o', '{item.id}'], ['url', `https://tidal.com/track/${id}/u`]].flat(),
-            {
-              env: {
-                ...process.env,
-                TIDDL_AUTH: `${this.#clientId};${this.#clientSecret}`,
-              },
-            }
-          );
-          dl.on('close', (code) => (code === 0 ? resolve() : reject()));
-          dl.on('error', reject);
-        });
-      } catch (error) {
-        console.error(error);
-        throw new Error('Failed to download song');
-      }
-      console.log('Downloading success!');
-    }
+    const flac = await this.#tiddl.download(id);
 
     console.log('Transcoding...');
 
@@ -161,12 +139,12 @@ export class Tidal {
         const transcode = spawn(
           'ffmpeg',
           [
-            ['-i', outputs.flac],
+            ['-i', flac],
             ['-c:a', 'libopus'],
             ['-b:a', '128k'],
             ['-ar', '48000'],
             ['-filter:a', 'volume=0.02'],
-            outputs.ogg,
+            ogg,
           ].flat()
         );
         transcode.on('close', (code) => (code === 0 ? resolve() : reject()));
@@ -180,9 +158,9 @@ export class Tidal {
 
     console.log('Transcoding success!');
 
-    await unlink(outputs.flac);
+    await unlink(flac);
 
-    return outputs.ogg;
+    return ogg;
   }
 
   async stream(id: string): Promise<ReadStream> {

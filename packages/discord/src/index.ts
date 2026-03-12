@@ -235,12 +235,31 @@ export class DiscordPlatform extends FlariePlatform {
     const player = this.#player(guildId);
 
     player.on(AudioPlayerStatus.Playing, () => this.emit('audio:playing', { guildId, channelId }));
+    player.on(AudioPlayerStatus.Paused, () => this.emit('audio:paused', { guildId, channelId }));
     player.on(AudioPlayerStatus.Idle, () => this.emit('audio:idle', { guildId, channelId }));
 
     player.on('error', console.error);
 
     connection.subscribe(player);
     player.play(resource);
+  }
+
+  override async stop(guildId: string): Promise<void> {
+    const player = this.#player(guildId);
+
+    player.stop();
+  }
+
+  override async pause(guildId: string): Promise<void> {
+    const player = this.#player(guildId);
+
+    player.pause();
+  }
+
+  override async unpause(guildId: string): Promise<void> {
+    const player = this.#player(guildId);
+
+    player.unpause();
   }
 
   override async send(channelId: string, message: FlarieOutgoingMessage | string): Promise<string> {

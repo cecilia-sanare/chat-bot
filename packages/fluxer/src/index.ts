@@ -163,7 +163,7 @@ export class FluxerPlatform extends FlariePlatform {
       console.log(`Connection: ${oldState.status} -> ${newState.status}`);
     });
 
-    await connection.play(stream);
+    connection.playOpus(stream);
 
     this.#client.on(Events.VoiceStateUpdate, (data) => console.log(data));
     this.#client.on(Events.VoiceServerUpdate, (data) => console.log(data));
@@ -177,6 +177,32 @@ export class FluxerPlatform extends FlariePlatform {
 
     // connection.subscribe(player);
     // player.play(resource);
+  }
+
+  override async stop(guildId: string): Promise<void> {
+    const connection = this.#voiceManager.getConnection(guildId);
+
+    if (!connection) return;
+
+    connection.stop();
+  }
+
+  override async pause(guildId: string): Promise<void> {
+    const connection = this.#voiceManager.getConnection(guildId);
+
+    if (!connection) return;
+
+    // TODO: Implement this
+    // connection.();
+  }
+
+  override async unpause(guildId: string): Promise<void> {
+    const connection = this.#voiceManager.getConnection(guildId);
+
+    if (!connection) return;
+
+    // TODO: Implement this
+    // connection.unpause();
   }
 
   private toMessage(message: string): string;
