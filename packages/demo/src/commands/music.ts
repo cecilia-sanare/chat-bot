@@ -69,6 +69,8 @@ export function addMusicCommands(flarie: Flarie) {
     if (!message.guildId) return;
 
     await platform.leave(message.guildId);
+
+    music.clear(message.guildId);
   });
 
   flarie.register('skip', async ({ message, platform }) => {

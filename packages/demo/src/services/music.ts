@@ -39,6 +39,12 @@ export class MusicManager {
     this.#current[guildId] = track;
     return track;
   }
+
+  clear(guildId?: string) {
+    if (!guildId) return;
+
+    delete this.#current[guildId];
+  }
 }
 
 export namespace MusicManager {
