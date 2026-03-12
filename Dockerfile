@@ -4,9 +4,8 @@ ENV PATH="/root/.local/bin:$PATH" \
     NODE_ENV="production"
 
 # System deps first — these change least often
-# RUN apt-get update && apt-get install -y python3 python3-pip pipx ffmpeg && rm -rf /var/lib/apt/lists/*
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 python3-pip pipx opus-tools \
+  && apt-get install -y --no-install-recommends python3 python3-pip pipx ffmpeg \
   && pipx install tiddl \
   && rm -rf /var/lib/apt/lists/*
 
