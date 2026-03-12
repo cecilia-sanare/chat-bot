@@ -8,11 +8,17 @@ import { join } from 'path';
 const SONGS_DIR = join(process.cwd(), '../../', 'songs');
 
 export class Tidal {
-  #credentials: string;
+  #clientId: string;
+  #clientSecret: string;
   #token?: Tidal.Api.TokenResponse;
 
   constructor({ clientId, clientSecret }: Tidal.Options) {
-    this.#credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    this.#clientId = clientId;
+    this.#clientSecret = clientSecret;
+  }
+
+  get credentials() {
+    return Buffer.from(`${this.#clientId}:${this.#clientSecret}`).toString('base64');
   }
 
   async token(): Promise<string> {
@@ -22,7 +28,7 @@ export class Tidal {
     if (!this.#token) {
       this.#token = await rfetch.post<Tidal.Api.TokenResponse>('https://auth.tidal.com/v1/oauth2/token', {
         headers: {
-          Authorization: `Basic ${this.#credentials}`,
+          Authorization: `Basic ${this.credentials}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: 'grant_type=client_credentials',
@@ -128,7 +134,13 @@ export class Tidal {
       await new Promise<void>((resolve, reject) => {
         const dl = spawn(
           'tiddl',
-          ['download', ['-p', SONGS_DIR], ['-o', '{item.id}'], ['url', `https://tidal.com/track/${id}/u`]].flat()
+          ['download', ['-p', SONGS_DIR], ['-o', '{item.id}'], ['url', `https://tidal.com/track/${id}/u`]].flat(),
+          {
+            env: {
+              ...process.env,
+              TIDDL_AUTH: `${this.#clientId};${this.#clientSecret}`,
+            },
+          }
         );
         dl.on('close', (code) => (code === 0 ? resolve() : reject()));
       });

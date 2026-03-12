@@ -37,4 +37,5 @@ local.db
 
 *.mp3
 *.flac
+*.opus
 *.ogg

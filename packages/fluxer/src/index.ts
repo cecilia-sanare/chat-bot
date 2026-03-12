@@ -1,17 +1,13 @@
 import { Client, Events, MessageSendOptions, Message } from '@fluxerjs/core';
-import {
-  FlariePlatform,
-  FlarieIncomingMessage,
-  FlarieUser,
-  FlarieOutgoingMessage,
-  color,
-  MessageType,
-} from '@flarie/core';
+import { FlariePlatform, FlarieUser, FlarieOutgoingMessage, color } from '@flarie/core';
+import { getVoiceManager, VoiceManager } from '@fluxerjs/voice';
+import { ReadStream } from 'fs';
 
 export class FluxerPlatform extends FlariePlatform {
   override name: string = 'Fluxer';
 
   #client: Client;
+  #voiceManager: VoiceManager;
   #bot?: FlarieUser;
 
   constructor({ token, status }: FluxerPlatform.Options) {
@@ -26,8 +22,12 @@ export class FluxerPlatform extends FlariePlatform {
         },
       },
     });
+    this.#voiceManager = getVoiceManager(this.#client);
 
     this.#client.on(Events.MessageCreate, async (message: Message) => {
+      const voiceChannelId =
+        (message.guildId && this.#voiceManager.getVoiceChannelId(message.guildId, message.author.id)) || undefined;
+
       this.emit('message', {
         platform: this,
         message: {
@@ -38,6 +38,7 @@ export class FluxerPlatform extends FlariePlatform {
             id: message.author.id,
             username: message.author.username,
             displayName: message.author.globalName,
+            voiceChannelId,
           },
           content: message.content,
 
@@ -112,6 +113,70 @@ export class FluxerPlatform extends FlariePlatform {
     if (!id) return undefined;
 
     return `<@${id}>`;
+  }
+
+  override async join(channelId: string): Promise<void> {
+    const channel = await this.#client.channels.fetch(channelId);
+
+    if (!channel) throw new Error('Channel not found');
+    if (!channel.isVoice()) throw new Error('Voice Connections are not supported in DMs!');
+
+    const connection = await this.#voiceManager.join(channel);
+
+    connection.on('serverLeave', async () => {
+      try {
+        await this.#voiceManager.join(channel);
+      } catch (e) {
+        console.error('Auto-reconnect failed:', e);
+      }
+    });
+  }
+
+  override async leave(guildId: string): Promise<boolean> {
+    const connection = this.#voiceManager.getConnection(guildId);
+
+    if (!connection) return false;
+
+    this.#voiceManager.leave(guildId);
+
+    return true;
+  }
+
+  override connected(guildId: string): boolean {
+    return this.#voiceManager.getConnection(guildId) !== undefined;
+  }
+
+  playing(guildId: string): boolean {
+    const connection = this.#voiceManager.getConnection(guildId);
+
+    return connection?.playing ?? false;
+  }
+
+  // connected, playing
+
+  async play(guildId: string, stream: ReadStream) {
+    const connection = this.#voiceManager.getConnection(guildId);
+
+    if (!connection) throw new Error('Not connected to a voice channel');
+
+    connection.on('stateChange', (oldState, newState) => {
+      console.log(`Connection: ${oldState.status} -> ${newState.status}`);
+    });
+
+    await connection.play(stream);
+
+    this.#client.on(Events.VoiceStateUpdate, (data) => console.log(data));
+    this.#client.on(Events.VoiceServerUpdate, (data) => console.log(data));
+
+    // player.on(AudioPlayerStatus.Playing, () =>
+    //   this.emit('audio:playing', { guildId, channelId: connection.channel.id })
+    // );
+    // player.on(AudioPlayerStatus.Idle, () => this.emit('audio:idle', { guildId, channelId: connection.channel.id }));
+
+    // player.on('error', console.error);
+
+    // connection.subscribe(player);
+    // player.play(resource);
   }
 
   private toMessage(message: string): string;
