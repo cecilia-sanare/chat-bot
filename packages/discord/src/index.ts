@@ -16,12 +16,26 @@ import {
   color,
   MessageType,
 } from '@flarie/core';
+import {
+  joinVoiceChannel,
+  createAudioResource,
+  createAudioPlayer,
+  NoSubscriberBehavior,
+  AudioPlayerStatus,
+  StreamType,
+  entersState,
+  VoiceConnectionStatus,
+  getVoiceConnection,
+  AudioPlayer,
+} from '@discordjs/voice';
+import { ReadStream } from 'node:fs';
 
 export class DiscordPlatform extends FlariePlatform {
   override name: string = 'Discord';
 
   #client: Client;
   #bot?: FlarieUser;
+  #players = new Map<string, AudioPlayer>();
 
   constructor({ token, status }: DiscordPlatform.Options) {
     super();
@@ -32,6 +46,7 @@ export class DiscordPlatform extends FlariePlatform {
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildVoiceStates, // required for voice
       ],
       partials: [Partials.Channel],
 
@@ -49,6 +64,8 @@ export class DiscordPlatform extends FlariePlatform {
     });
 
     this.#client.on(Events.MessageCreate, async (incomingMessage) => {
+      if (incomingMessage.author.bot) return;
+
       const incomingFlarieMessage: FlarieIncomingMessage = {
         messageId: incomingMessage.id,
         guildId: incomingMessage.guildId ?? undefined,
@@ -57,6 +74,7 @@ export class DiscordPlatform extends FlariePlatform {
           id: incomingMessage.author.id,
           username: incomingMessage.author.username,
           displayName: incomingMessage.author.globalName,
+          voiceChannelId: incomingMessage.member?.voice.channel?.id,
         },
         content: incomingMessage.content,
 
@@ -67,12 +85,6 @@ export class DiscordPlatform extends FlariePlatform {
             typeof outgoingMessage === 'string'
               ? {
                   content: outgoingMessage,
-                  reference: {
-                    type: MessageType.Reply,
-                    guildId: incomingMessage.guildId ?? undefined,
-                    channelId: incomingMessage.channelId,
-                    messageId: incomingMessage.id,
-                  },
                 }
               : outgoingMessage;
 
@@ -137,8 +149,102 @@ export class DiscordPlatform extends FlariePlatform {
       console.error('Failed to connect to the gateway!', error);
     }
   }
-  override async send(channelId: string, message: FlarieOutgoingMessage): Promise<string> {
-    const channel = await this.#client.channels.cache.get(channelId);
+
+  playing(guildId: string): boolean {
+    const player = this.#players.get(guildId);
+    if (!player) return false;
+
+    return player.state.status === AudioPlayerStatus.Playing;
+  }
+
+  #player(guildId: string): AudioPlayer {
+    let player = this.#players.get(guildId);
+
+    if (!player) {
+      player = createAudioPlayer({
+        behaviors: {
+          noSubscriber: NoSubscriberBehavior.Pause,
+        },
+      });
+
+      this.#players.set(guildId, player);
+    }
+
+    return player;
+  }
+
+  override connected(guildId: string): boolean {
+    return getVoiceConnection(guildId) !== undefined;
+  }
+
+  async join(voiceChannelId: string) {
+    const channel = this.#client.channels.resolve(voiceChannelId);
+
+    if (!channel) throw new Error('Channel not found');
+    if (channel.isDMBased()) throw new Error('Voice Connections are not supported in DMs!');
+
+    const connection = joinVoiceChannel({
+      channelId: channel.id,
+      guildId: channel.guildId,
+      adapterCreator: channel.guild.voiceAdapterCreator,
+      selfDeaf: true,
+    });
+
+    try {
+      await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+    } catch {
+      connection.destroy();
+      throw new Error('Failed to join voice channel within 30s');
+    }
+  }
+
+  async leave(guildId: string) {
+    const connection = getVoiceConnection(guildId);
+
+    if (!connection) return false;
+
+    return connection.disconnect();
+  }
+
+  async play(guildId: string, stream: ReadStream) {
+    const connection = getVoiceConnection(guildId);
+
+    if (!connection) throw new Error('Not connected to a voice channel');
+
+    const { channelId } = connection.joinConfig;
+
+    if (!channelId) throw new Error('Connection not joined to a voice channel');
+
+    connection.on('stateChange', (oldState, newState) => {
+      console.log(`Connection: ${oldState.status} -> ${newState.status}`);
+    });
+
+    const resource = createAudioResource(stream, {
+      inputType: StreamType.OggOpus,
+    });
+
+    resource.volume?.setVolume(0.02);
+
+    try {
+      await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+    } catch {
+      connection.destroy();
+      throw new Error('Failed to join voice channel within 30s');
+    }
+
+    const player = this.#player(guildId);
+
+    player.on(AudioPlayerStatus.Playing, () => this.emit('audio:playing', { guildId, channelId }));
+    player.on(AudioPlayerStatus.Idle, () => this.emit('audio:idle', { guildId, channelId }));
+
+    player.on('error', console.error);
+
+    connection.subscribe(player);
+    player.play(resource);
+  }
+
+  override async send(channelId: string, message: FlarieOutgoingMessage | string): Promise<string> {
+    const channel = this.#client.channels.cache.get(channelId);
 
     if (!channel) {
       throw new Error(`Specified channel does not exist. (${channelId})`);
@@ -158,7 +264,13 @@ export class DiscordPlatform extends FlariePlatform {
     return `<@${id}>`;
   }
 
-  private toMessage(message: FlarieOutgoingMessage): MessageCreateOptions | MessageReplyOptions {
+  private toMessage(message: string | FlarieOutgoingMessage): MessageCreateOptions | MessageReplyOptions {
+    if (typeof message === 'string') {
+      return {
+        content: message,
+      };
+    }
+
     return {
       // flags: message.ephemeral ? MessageFlags.Ephemeral : undefined,
       content: message.content,

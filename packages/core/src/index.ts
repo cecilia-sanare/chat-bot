@@ -30,7 +30,9 @@ export class Flarie {
                   color: '#bb2124',
                   title: 'Error!',
                   description:
-                    error instanceof Error && error.message ? error.message : 'An unexpected error occurred!',
+                    error instanceof Error && error.message
+                      ? ['```', error.message, '```'].join('\n')
+                      : 'An unexpected error occurred!',
                 },
               ],
             });

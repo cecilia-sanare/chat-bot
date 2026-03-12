@@ -7,6 +7,7 @@ import { addConfigCommands } from './commands/config';
 import { addArrCommands } from './commands/arr';
 import { addInfoCommand } from './commands/info';
 import { addStatusCommands } from './commands/status';
+import { addMusicCommands } from './commands/music';
 
 export function getPlatforms() {
   const platforms: FlariePlatform[] = [];
@@ -83,3 +84,4 @@ addStatusCommands(flarie);
 addInfoCommand(flarie);
 addConfigCommands(flarie);
 addArrCommands(flarie);
+addMusicCommands(flarie);

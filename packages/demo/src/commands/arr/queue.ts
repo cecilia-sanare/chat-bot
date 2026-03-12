@@ -6,7 +6,7 @@ import dedent from 'dedent';
 import { config } from '../../config';
 
 export function addQueueCommand(flarie: Flarie, sonarr: Sonarr, radarr: Radarr) {
-  flarie.register('queue', async ({ message }) => {
+  flarie.register('activity', async ({ message }) => {
     await message.typing();
 
     const embeds = await Promise.all([getMoviesEmbed(radarr), getShowsEmbed(sonarr)]);

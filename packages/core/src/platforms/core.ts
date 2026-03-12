@@ -1,3 +1,4 @@
+import { ReadStream } from 'node:fs';
 import type { FlarieIncomingMessage, FlarieOutgoingMessage, FlarieUser } from '../types/message';
 
 export abstract class FlariePlatform {
@@ -7,24 +8,27 @@ export abstract class FlariePlatform {
 
   private listeners: FlariePlatform.Listeners = {
     message: [],
+    'audio:playing': [],
+    'audio:idle': [],
   };
 
   async on<Event extends FlariePlatform.ListenerEvents>(
     event: Event,
     callback: FlariePlatform.Listeners[Event][number]
   ) {
-    this.listeners[event].push(callback);
+    // TODO: Hate this, but can't for the life of me figure out how to get typescript to behave
+    this.listeners[event].push(callback as any);
   }
 
   async off<Event extends FlariePlatform.ListenerEvents>(
     event: Event,
     callback: FlariePlatform.Listeners[Event][number]
   ) {
-    const index = this.listeners[event].indexOf(callback);
+    const index = this.listeners[event].indexOf(callback as any);
 
     if (index === -1) return;
 
-    this.listeners[event] = this.listeners[event].splice(index, 1);
+    this.listeners[event] = this.listeners[event].splice(index, 1) as any;
   }
 
   async emit<Event extends FlariePlatform.ListenerEvents>(
@@ -33,7 +37,7 @@ export abstract class FlariePlatform {
   ) {
     const listeners = this.listeners[event];
 
-    await Promise.all(listeners.map((listener) => listener.call(undefined, ...args)));
+    await Promise.all(listeners.map((listener) => (listener as any).call(undefined, ...args)));
   }
 
   get status() {
@@ -49,13 +53,21 @@ export abstract class FlariePlatform {
     return this.#lastStatusChangeAt;
   }
 
-  abstract send(id: string, message: FlarieOutgoingMessage): Promise<string>;
+  abstract send(id: string, message: FlarieOutgoingMessage | string): Promise<string>;
   abstract mention(id?: string): string | undefined;
+
+  abstract connected(guildId: string): boolean;
+  abstract join(channelId: string): Promise<void>;
+  abstract leave(guildId: string): Promise<boolean>;
+  abstract play(guildId: string, stream: ReadStream): Promise<void>;
+  abstract playing(guildId: string): boolean;
 }
 
 export namespace FlariePlatform {
   export type Listeners = {
     message: MessageListener[];
+    'audio:playing': PlayingListener[];
+    'audio:idle': IdleListener[];
   };
 
   export type ListenerEvents = keyof Listeners;
@@ -65,6 +77,18 @@ export namespace FlariePlatform {
     platform: FlariePlatform;
     message: FlarieIncomingMessage;
     bot?: FlarieUser;
+  };
+
+  export type PlayingListener = (details: PlayingListenerDetails) => void;
+  export type PlayingListenerDetails = {
+    guildId: string;
+    channelId: string;
+  };
+
+  export type IdleListener = (details: IdleListenerDetails) => void;
+  export type IdleListenerDetails = {
+    guildId: string;
+    channelId: string;
   };
 
   export enum Status {

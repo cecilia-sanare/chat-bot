@@ -1,0 +1,6 @@
+[
+  {
+    "label": "start",
+    "command": "bun run build && bun start",
+  },
+]

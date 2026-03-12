@@ -1,0 +1,8 @@
+{
+  "formatter": "prettier",
+  "format_on_save": "on",
+  "code_actions_on_format": {
+    "source.addMissingImports": true,
+    "source.fixAll.eslint": true,
+  },
+}

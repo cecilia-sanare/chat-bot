@@ -12,12 +12,6 @@ export interface FlarieIncomingMessage {
 export type FlarieOutgoingMessage = {
   content?: string;
   embeds?: FlarieEmbed[];
-  reference?: {
-    type?: MessageType;
-    guildId?: string;
-    channelId?: string;
-    messageId: string;
-  };
   ephemeral?: boolean;
 };
 
@@ -60,6 +54,7 @@ export type FlarieUser = {
   id: string;
   username: string;
   displayName: string | null;
+  voiceChannelId?: string;
 };
 
 export enum MessageType {

@@ -2,6 +2,7 @@ import { DiscordPlatform } from '@flarie/discord';
 import { FluxerPlatform } from '@flarie/fluxer';
 import { Sonarr } from './services/sonarr';
 import { Radarr } from './services/radarr';
+import { Tidal } from './services/tidal';
 
 export type Config = {
   version: string;
@@ -12,6 +13,7 @@ export type Config = {
   discord: Partial<DiscordPlatform.Options>;
   sonarr: Partial<Sonarr.Options>;
   radarr: Partial<Radarr.Options>;
+  tidal: Partial<Tidal.Options>;
 };
 
 export namespace defined {
@@ -29,6 +31,10 @@ export namespace defined {
 
   export function radarr(value: Partial<Radarr.Options>): value is Radarr.Options {
     return 'url' in value && 'token' in value;
+  }
+
+  export function tidal(value: Partial<Tidal.Options>): value is Tidal.Options {
+    return 'clientId' in value && 'clientSecret' in value;
   }
 }
 
@@ -54,5 +60,9 @@ export const config: Config = {
   radarr: {
     url: process.env.RADARR_URL,
     token: process.env.RADARR_API_KEY,
+  },
+  tidal: {
+    clientId: process.env.TIDAL_CLIENT_ID,
+    clientSecret: process.env.TIDAL_CLIENT_SECRET,
   },
 };

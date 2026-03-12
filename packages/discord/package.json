@@ -4,12 +4,16 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "rm -rf dist/ && bun build --target node --outdir ./dist --production .",
+    "build": "rm -rf dist/ && bun build --target bun --outdir ./dist --external @discordjs/voice --production .",
     "types": "tsc -p ./tsconfig.json --emitDeclarationOnly"
   },
   "dependencies": {
+    "@discordjs/voice": "^0.19.1",
     "@flarie/core": "workspace:^",
-    "discord.js": "^14.25.1"
+    "discord.js": "^14.25.1",
+    "ffmpeg-static": "^5.3.0",
+    "libsodium-wrappers": "^0.8.2",
+    "opusscript": "^0.1.1"
   },
   "devDependencies": {
     "@types/bun": "latest",
