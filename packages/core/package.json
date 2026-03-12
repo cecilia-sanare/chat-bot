@@ -4,7 +4,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "rm -rf dist/ && bun build --target bun --outdir ./dist --production .",
+    "build": "rm -rf dist/ && bun build --target bun --outdir ./dist --production --sourcemap=external .",
     "types": "tsc -p ./tsconfig.json --emitDeclarationOnly"
   },
   "devDependencies": {

@@ -1,11 +1,13 @@
-export function toRegExpFunction(message: string): RegExpFunction {
-  const conformedMessage = message
-    .replaceAll(/{\.{3}([^}]+)}/g, '(?<$1>.+)')
-    .replaceAll(/{([^}]+)}/g, '(?<$1>[^\\s]+|"[^"]+")');
+export function toRegExpFunction(message: string | string[]): RegExpFunction {
+  const messages = Array.isArray(message) ? message : [message];
 
-  const regex = new RegExp(`^${conformedMessage}$`, 'i');
+  const conformedMessages = messages.map((message) =>
+    message.replaceAll(/{\.{3}([^}]+)}/g, '(?<$1>.+)').replaceAll(/{([^}]+)}/g, '(?<$1>[^\\s]+|"[^"]+")')
+  );
+
+  const regexes = conformedMessages.map((message) => new RegExp(`^${message}$`, 'i'));
   return (value: string) => {
-    const result = regex.exec(value);
+    const result = exec(regexes, value);
 
     return [
       !!result,
@@ -15,6 +17,18 @@ export function toRegExpFunction(message: string): RegExpFunction {
       }, {}),
     ] as const;
   };
+}
+
+export function exec(regexes: RegExp[], value: string) {
+  for (const regex of regexes) {
+    const result = regex.exec(value);
+
+    if (result === null) continue;
+
+    return result;
+  }
+
+  return null;
 }
 
 export type RegExpFunction = (value: string) => [boolean, Record<string, string>];

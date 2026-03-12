@@ -202,7 +202,7 @@ export function addMusicCommands(flarie: Flarie) {
     await platform.pause(message.guildId);
   });
 
-  flarie.register('unpause', async ({ message, platform }) => {
+  flarie.register(['unpause', 'resume'], async ({ message, platform }) => {
     if (!message.guildId) return;
 
     await platform.unpause(message.guildId);

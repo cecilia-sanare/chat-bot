@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'bun:test';
-import { toRegExpFunction } from '../regex';
+import { describe, it, expect, vi } from 'bun:test';
+import { exec, toRegExpFunction } from '../regex';
 
 describe('Regex Utils', () => {
   describe('fn(toRegExp)', () => {
@@ -7,6 +7,14 @@ describe('Regex Utils', () => {
       const exec = toRegExpFunction('info');
 
       const [matches, groups] = exec('info');
+      expect(matches).toBeTrue();
+      expect(groups).toEqual({});
+    });
+
+    it('should multiple messages', () => {
+      const exec = toRegExpFunction(['unpause', 'resume']);
+
+      const [matches, groups] = exec('resume');
       expect(matches).toBeTrue();
       expect(groups).toEqual({});
     });
@@ -65,6 +73,27 @@ describe('Regex Utils', () => {
         hello: 'hallo',
         world: 'welt',
       });
+    });
+  });
+
+  describe('fn(exec)', () => {
+    it('should return the first match', () => {
+      const first = /^hello$/;
+      const second = /^hallo$/;
+      const secondExec = vi.spyOn(second, 'exec');
+
+      // TODO: Look into the bulk undo that zed does
+      const [match, groups] = exec([first, second], 'hello')!;
+
+      expect(match).toEqual('hello');
+      expect(groups).toEqual(undefined);
+      expect(secondExec).not.toHaveBeenCalled();
+    });
+
+    it('should return null if none of the regexes match', () => {
+      const result = exec([], 'hello');
+
+      expect(result).toEqual(null);
     });
   });
 });

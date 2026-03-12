@@ -43,8 +43,8 @@ export class Flarie {
     }
   }
 
-  register(command: string, callback: FlarieCommand.Callback): void {
-    this.#commands.push(new FlarieCommand(command, callback));
+  register(commands: string | string[], callback: FlarieCommand.Callback): void {
+    this.#commands.push(new FlarieCommand(commands, callback));
   }
 
   prefix(prefix: Flarie.Prefix): void {

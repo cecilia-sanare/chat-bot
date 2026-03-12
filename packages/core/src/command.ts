@@ -4,10 +4,10 @@ import type { FlariePlatform } from './platforms';
 export class FlarieCommand {
   private exec: RegExpFunction;
   constructor(
-    command: string,
+    commands: string | string[],
     private callback: FlarieCommand.Callback
   ) {
-    this.exec = toRegExpFunction(command);
+    this.exec = toRegExpFunction(commands);
   }
 
   async emit(details: FlariePlatform.MessageListenerDetails): Promise<boolean> {

@@ -211,10 +211,6 @@ export class DiscordPlatform extends FlariePlatform {
 
     if (!connection) throw new Error('Not connected to a voice channel');
 
-    const { channelId } = connection.joinConfig;
-
-    if (!channelId) throw new Error('Connection not joined to a voice channel');
-
     connection.on('stateChange', (oldState, newState) => {
       console.log(`Connection: ${oldState.status} -> ${newState.status}`);
     });
@@ -234,9 +230,31 @@ export class DiscordPlatform extends FlariePlatform {
 
     const player = this.#player(guildId);
 
-    player.on(AudioPlayerStatus.Playing, () => this.emit('audio:playing', { guildId, channelId }));
-    player.on(AudioPlayerStatus.Paused, () => this.emit('audio:paused', { guildId, channelId }));
-    player.on(AudioPlayerStatus.Idle, () => this.emit('audio:idle', { guildId, channelId }));
+    player.on(AudioPlayerStatus.Playing, (oldState) => {
+      const { channelId } = connection.joinConfig;
+      if (!channelId) throw new Error('Connection not joined to a voice channel');
+
+      // If we were previously idle then we're resuming, otherwise we're playing something new
+      if (oldState.status === AudioPlayerStatus.Paused) {
+        this.emit('audio:resume', { guildId, channelId });
+      } else if (oldState.status !== AudioPlayerStatus.AutoPaused) {
+        this.emit('audio:playing', { guildId, channelId });
+      }
+    });
+
+    player.on(AudioPlayerStatus.Paused, () => {
+      const { channelId } = connection.joinConfig;
+      if (!channelId) throw new Error('Connection not joined to a voice channel');
+
+      this.emit('audio:paused', { guildId, channelId });
+    });
+
+    player.on(AudioPlayerStatus.Idle, () => {
+      const { channelId } = connection.joinConfig;
+      if (!channelId) throw new Error('Connection not joined to a voice channel');
+
+      this.emit('audio:idle', { guildId, channelId });
+    });
 
     player.on('error', console.error);
 
