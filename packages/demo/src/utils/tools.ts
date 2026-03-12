@@ -26,23 +26,6 @@ export async function transcode(input: string, output: string): Promise<void> {
         transcode.on('error', reject);
         transcode.on('exit', (code) => (code === 0 ? resolve() : reject()));
       });
-    } else if (transcoder === 'opusenc') {
-      console.log('[opusenc] Transcoding...');
-      await new Promise<void>((resolve, reject) => {
-        const transcode = spawn(
-          'opusenc',
-          [
-            ['--bitrate', '128'],
-            ['--raw-rate', '48000'],
-            ['--gain', '-40'], // roughly equivalent to volume=0.02 (≈ -34dB, tweak as needed)
-            input,
-            output,
-          ].flat()
-        );
-        transcode.on('close', (code) => (code === 0 ? resolve() : reject()));
-        transcode.on('error', reject);
-        transcode.on('exit', (code) => (code === 0 ? resolve() : reject()));
-      });
     } else {
       throw new Error('No transcoder found');
     }
