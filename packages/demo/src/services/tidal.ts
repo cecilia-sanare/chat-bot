@@ -1,4 +1,4 @@
-import { rfetch } from '@ribbon-studios/js-utils';
+import { delay, retry, rfetch, RibbonFetchError } from '@ribbon-studios/js-utils';
 import { spawn } from 'child_process';
 import { createReadStream, existsSync } from 'fs';
 import { ReadStream } from 'node:fs';
@@ -61,30 +61,58 @@ export class Tidal {
       }
     );
 
-    return artworks
-      .map((artwork) =>
-        artwork.attributes.files.map<Tidal.Artwork>((file) => ({
-          url: file.href,
-          width: file.meta.width,
-          height: file.meta.height,
-        }))
-      )
-      .flat();
+    return artworks.map<Tidal.Artwork>((artwork) => ({
+      id: artwork.id,
+      type: 'artwork',
+      files: artwork.attributes.files.map((file) => ({
+        url: file.href,
+        width: file.meta.width,
+        height: file.meta.height,
+      })),
+    }));
   }
 
-  async getTrack(url: string): Promise<Tidal.Track | null> {
-    const trackId = this.id(url);
+  parse(url: string): Tidal.ParsedUrl | null {
+    if (/^\d+$/.test(url)) {
+      return {
+        id: url,
+        type: 'track',
+      };
+    }
 
-    if (!trackId) throw new Error(`Invalid url: ${url}`);
+    const [, trackId] = url.match(/tidal\.com\/(?:browse\/)?track\/(\d+)/) ?? [];
+
+    if (trackId) {
+      return {
+        id: trackId,
+        type: 'track',
+      };
+    }
+
+    const [, playlistId] = url.match(/tidal.com\/playlist\/([\w\d\-]+)/) ?? [];
+
+    if (playlistId) {
+      return {
+        id: playlistId,
+        type: 'playlist',
+        tracks: [],
+      };
+    }
+
+    return null;
+  }
+
+  async getPlaylist(url: Tidal.ParsedUrl): Promise<Tidal.Playlist | null> {
+    if (url.type !== 'playlist') throw new Error(`Invalid type. (${url.type})`);
 
     const token = await this.token();
 
-    const { data: track, included } = await rfetch<Tidal.Api.Response<Tidal.Api.Track>>(
-      `https://openapi.tidal.com/v2/tracks/${trackId}`,
+    const { data: playlist } = await rfetch<Tidal.Api.Response<Tidal.Api.Playlist>>(
+      `https://openapi.tidal.com/v2/playlists/${url.id}`,
       {
         params: {
           countryCode: 'US',
-          include: ['albums', 'artists', 'albums.coverArt'],
+          include: ['coverArt'],
         },
         headers: {
           Authorization: `Bearer ${token}`,
@@ -93,39 +121,187 @@ export class Tidal {
       }
     );
 
-    const artists = included.filter(({ type }) => type === 'artists') as Tidal.Api.Artist[];
-    const album = included.find(({ type }) => type === 'albums') as Tidal.Api.Album | undefined;
-    const artworks = await this.getArtworks(album?.relationships.coverArt.data.map(({ id }) => id));
+    let cursor: string | null | undefined = undefined;
+    const result: Tidal.Api.Track[] = [];
+    while (cursor !== null) {
+      const page = await this.getPlaylistRelationships(url, cursor);
+      result.push(...page.data.filter((item) => item.type === 'tracks'));
+      cursor = page.nextCursor ?? null;
+    }
+
+    const [tracks, artworks] = await Promise.all([
+      this.getTracks(
+        result.map(({ id }) => ({
+          id,
+          type: 'track',
+        }))
+      ),
+      this.getArtworks(playlist.relationships.coverArt.data.map(({ id }) => id)),
+    ]);
+
+    const trackById = tracks.reduce<Record<string, Tidal.Track>>(
+      (output, track) => ({
+        ...output,
+        [track.id]: track,
+      }),
+      {}
+    );
+
+    const [artwork] = artworks;
 
     return {
-      id: track.id,
-      title: track.attributes?.title,
-      artists: artists.map((artist) => ({
-        id: artist.id,
-        name: artist.attributes.name,
-      })),
-      album: album?.attributes.title ?? 'Unknown',
-      artwork: artworks.find((artwork) => artwork.width === 320)?.url,
+      id: playlist.id,
+      type: 'playlist',
+      title: playlist.attributes.name,
+      tracks: result.map(({ id }) => trackById[id]!),
+      artwork: artwork?.files.find((artwork) => artwork.width === 320)?.url,
     };
   }
 
-  id(url: string): string | null {
-    if (/^\d+$/.test(url)) return url;
+  async getPlaylistRelationships(url: Tidal.ParsedUrl, cursor?: string): Promise<Tidal.Page<Tidal.Api.Included>> {
+    if (url.type !== 'playlist') throw new Error('');
 
-    const [, trackId] = url.match(/tidal\.com\/(?:browse\/)?track\/(\d+)/) ?? [];
+    const token = await this.token();
 
-    return trackId ?? null;
+    const { data, links } = await rfetch<Tidal.Api.PaginatedResponse<Tidal.Api.Included[]>>(
+      `https://openapi.tidal.com/v2/playlists/${url.id}/relationships/items`,
+      {
+        params: {
+          countryCode: 'US',
+          'page[cursor]': cursor,
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.api+json',
+        },
+      }
+    );
+
+    return {
+      data,
+      nextCursor: links.meta?.nextCursor,
+    };
+  }
+
+  async getTracks(urls: Tidal.ParsedUrl[]): Promise<Tidal.Track[]> {
+    const token = await this.token();
+
+    try {
+      const tracks: Tidal.Api.Track[] = [];
+      const included: Record<string, Tidal.Api.Included> = {};
+
+      for (let i = 0; i < urls.length; i += 20) {
+        const ids = urls.slice(i, i + 20).map(({ id }) => id);
+
+        const { data: slicedTracks, included: slicedIncluded } = await retry(async () => {
+          await delay(2000);
+
+          return await rfetch<Tidal.Api.Response<Tidal.Api.Track[]>>(`https://openapi.tidal.com/v2/tracks`, {
+            params: {
+              countryCode: 'US',
+              include: ['albums', 'artists', 'albums.coverArt'],
+              'filter[id]': ids,
+            },
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/vnd.api+json',
+            },
+          });
+        }, 5);
+
+        tracks.push(...slicedTracks);
+
+        slicedIncluded.forEach((item) => {
+          included[`${item.type}-${item.id}`] = item;
+        });
+      }
+
+      const cache: Record<string, Tidal.Artwork> = {};
+
+      const result: Tidal.Track[] = [];
+
+      for (const track of tracks) {
+        const artists = track.relationships.artists.data.map(
+          (artist) => included[`${artist.type}-${artist.id}`]!
+        ) as Tidal.Api.Artist[];
+        const albums = track.relationships.albums.data.map(
+          (item) => included[`${item.type}-${item.id}`]
+        ) as Tidal.Api.Album[];
+
+        const [album] = albums;
+
+        const { cached, uncached } = album?.relationships.coverArt.data.reduce<{
+          cached: Tidal.Artwork[];
+          uncached: string[];
+        }>(
+          (output, { id }) => {
+            if (cache[id]) {
+              output.cached.push(cache[id]);
+            } else {
+              output.uncached.push(id);
+            }
+
+            return output;
+          },
+          {
+            cached: [],
+            uncached: [],
+          }
+        ) ?? {
+          cached: [],
+          uncached: [],
+        };
+
+        const uncachedArtworks = await this.getArtworks(uncached);
+
+        for (const artwork of uncachedArtworks) {
+          cache[artwork.id] = artwork;
+        }
+
+        const artworks = [...cached, ...uncachedArtworks];
+
+        const [artwork] = artworks;
+
+        result.push({
+          id: track.id,
+          type: 'track',
+          url: track.attributes.externalLinks.find(({ meta }) => meta.type === 'TIDAL_SHARING')?.href,
+          title: track.attributes.title,
+          artists: artists.map((artist) => ({
+            id: artist.id,
+            type: 'artist',
+            name: artist.attributes.name,
+          })),
+          album: album?.attributes.title ?? 'Unknown',
+          artwork: artwork?.files.find((artwork) => artwork.width === 320)?.url,
+        });
+
+        await delay(500);
+      }
+
+      return result;
+    } catch (error) {
+      if (rfetch.is.error(error)) {
+        console.error(error.content);
+      }
+
+      throw error;
+    }
+  }
+
+  async getTrack(url: Tidal.ParsedUrl): Promise<Tidal.Track | null> {
+    if (url.type !== 'track') throw new Error(`Invalid type. (${url.type})`);
+
+    const [track] = await this.getTracks([url]);
+
+    return track ?? null;
   }
 
   file(id: string, extension: 'flac' | 'ogg'): string {
     return join(SONGS_DIR, `${id}.${extension}`);
   }
 
-  async download(url: string): Promise<string> {
-    const id = this.id(url);
-
-    if (!id) throw new Error(`Invalid URL / ID: ${url}`);
-
+  async download(id: string): Promise<string> {
     const ogg = this.file(id, 'ogg');
 
     // If we have it cached already bail early
@@ -152,23 +328,68 @@ export namespace Tidal {
     clientSecret: string;
   };
 
+  export type ParsedUrl = ParsedUrl.Playlist | ParsedUrl.Track;
+
+  export namespace ParsedUrl {
+    export type Playlist = {
+      id: string;
+      type: 'playlist';
+      tracks: string[];
+    };
+
+    export type Track = {
+      id: string;
+      type: 'track';
+    };
+  }
+
+  export type Playlist = {
+    id: string;
+    type: 'playlist';
+    title: string;
+    tracks: Track[];
+    artwork?: string;
+  };
+
   export type Track = {
     id: string;
+    type: 'track';
     title: string;
     artists: Artist[];
     album: string;
     artwork?: string;
+    url?: string;
+  };
+
+  export type Included = Album | Artist | Track | Artwork;
+
+  export type Album = {
+    id: string;
+    type: 'album';
+    title: string;
   };
 
   export type Artist = {
     id: string;
+    type: 'artist';
     name: string;
   };
 
   export type Artwork = {
+    id: string;
+    type: 'artwork';
+    files: ArtworkFile[];
+  };
+
+  export type ArtworkFile = {
     url: string;
     width: number;
     height: number;
+  };
+
+  export type Page<T> = {
+    data: T[];
+    nextCursor?: string;
   };
 
   export namespace Api {
@@ -178,7 +399,38 @@ export namespace Tidal {
 
     export type Response<T> = {
       data: T;
-      included: (Album | Artist | Track | Artwork)[];
+      included: Included[];
+    };
+
+    export type Included = Album | Artist | Track | Artwork;
+
+    export type PaginatedResponse<T> = Response<T> & {
+      links: {
+        meta?: {
+          nextCursor: string;
+        };
+      };
+    };
+
+    export type Playlist = {
+      id: string;
+      type: 'playlists';
+      attributes: {
+        name: string;
+        numberOfItems: number;
+      };
+
+      relationships: {
+        coverArt: {
+          data: Artwork[];
+          links: {
+            self: '/albums/504656696/relationships/coverArt?countryCode=US';
+          };
+        };
+        items: {
+          data: Pick<Track, 'id' | 'type'>[];
+        };
+      };
     };
 
     export type Track = {
@@ -186,6 +438,23 @@ export namespace Tidal {
       type: 'tracks';
       attributes: {
         title: string;
+        externalLinks: ExternalLink[];
+      };
+
+      relationships: {
+        albums: {
+          data: Album[];
+        };
+        artists: {
+          data: Artist[];
+        };
+      };
+    };
+
+    export type ExternalLink = {
+      href: string;
+      meta: {
+        type: string;
       };
     };
 

@@ -14,7 +14,7 @@ export abstract class FlariePlatform {
     'audio:idle': [],
   };
 
-  async on<Event extends FlariePlatform.ListenerEvents>(
+  async on<Event extends keyof FlariePlatform.Listeners>(
     event: Event,
     callback: FlariePlatform.Listeners[Event][number]
   ) {
@@ -22,7 +22,7 @@ export abstract class FlariePlatform {
     this.listeners[event].push(callback as any);
   }
 
-  async off<Event extends FlariePlatform.ListenerEvents>(
+  async off<Event extends keyof FlariePlatform.Listeners>(
     event: Event,
     callback: FlariePlatform.Listeners[Event][number]
   ) {
@@ -33,7 +33,7 @@ export abstract class FlariePlatform {
     this.listeners[event] = this.listeners[event].splice(index, 1) as any;
   }
 
-  async emit<Event extends FlariePlatform.ListenerEvents>(
+  async emit<Event extends keyof FlariePlatform.Listeners>(
     event: Event,
     ...args: Parameters<FlariePlatform.Listeners[Event][number]>
   ) {
@@ -76,8 +76,6 @@ export namespace FlariePlatform {
     'audio:paused': PausedListener[];
     'audio:idle': IdleListener[];
   };
-
-  export type ListenerEvents = keyof Listeners;
 
   export type MessageListener = (details: MessageListenerDetails) => void;
   export type MessageListenerDetails = {

@@ -52,6 +52,13 @@ export function addMusicCommands(flarie: Flarie) {
           },
         ],
       });
+
+      // Preload the next track
+      const nextTrack = music.peek(guildId);
+
+      if (!nextTrack) return;
+
+      await tidal.download(nextTrack.id);
     });
 
     platform.on('audio:paused', async ({ channelId }) => {
@@ -69,6 +76,10 @@ export function addMusicCommands(flarie: Flarie) {
 
     platform.on('audio:idle', ({ guildId }) => next(platform, guildId));
   }
+
+  music.on('fresh', async ({ track }) => {
+    await tidal.download(track.id);
+  });
 
   flarie.register('playing', async ({ message, platform }) => {
     if (!message.guildId) return;
@@ -169,7 +180,7 @@ export function addMusicCommands(flarie: Flarie) {
       });
     }
 
-    const shortQueue = queue.slice(0, 5);
+    const shortQueue = queue.slice(0, 20);
 
     return await message.reply({
       embeds: [
@@ -181,9 +192,7 @@ export function addMusicCommands(flarie: Flarie) {
               dedent`
               **Backlog**
               ${[
-                ...shortQueue.map(
-                  (track) => `1. **${track.title}** _by ${track.artists.map((artist) => artist.name).join(', ')}_`
-                ),
+                ...shortQueue.map((track) => `1. ${track.url ? `[${track.title}](${track.url})` : track.title}`),
                 queue.length > shortQueue.length && `1. ${queue.length - shortQueue.length} more items...`,
               ]
                 .filter(Boolean)
@@ -216,37 +225,77 @@ export function addMusicCommands(flarie: Flarie) {
     }
 
     try {
-      const [track] = await Promise.all([tidal.getTrack(url), tidal.download(url)]);
+      const id = tidal.parse(url);
 
-      if (!track) {
-        throw new Error('Failed to request the song!');
+      if (!id) throw new Error(`Invalid url: ${url}`);
+
+      if (id.type === 'playlist') {
+        const playlist = await tidal.getPlaylist(id);
+
+        if (!playlist) {
+          throw new Error('Failed to request the playlist!');
+        }
+
+        music.queue(message.guildId, ...playlist.tracks);
+
+        if (!platform.playing(message.guildId)) {
+          return await next(platform, message.guildId);
+        }
+
+        await message.reply({
+          embeds: [
+            {
+              title: `Added to the queue! ~ 🎸 Music`,
+              fields: [
+                {
+                  name: 'Title',
+                  value: playlist.title,
+                },
+                {
+                  name: 'Artists',
+                  value: `${playlist.tracks.length} songs`,
+                },
+              ],
+              color: '#53a653',
+              thumbnail: playlist.artwork,
+            },
+          ],
+        });
+      } else if (id.type === 'track') {
+        const track = await tidal.getTrack(id);
+
+        if (!track) {
+          throw new Error('Failed to request the song!');
+        }
+
+        music.queue(message.guildId, track);
+
+        if (!platform.playing(message.guildId)) {
+          return await next(platform, message.guildId);
+        }
+
+        await message.reply({
+          embeds: [
+            {
+              title: `Added to the queue! ~ 🎸 Music`,
+              fields: [
+                {
+                  name: 'Title',
+                  value: `${track.title} (${track.album})`,
+                },
+                {
+                  name: 'Artists',
+                  value: track.artists.map((artist) => artist.name).join(', '),
+                },
+              ],
+              color: '#53a653',
+              thumbnail: track.artwork,
+            },
+          ],
+        });
+      } else {
+        throw new Error(`Unknown id type. ${id.type}`);
       }
-
-      music.queue(message.guildId, track);
-
-      if (!platform.playing(message.guildId)) {
-        return await next(platform, message.guildId);
-      }
-
-      await message.reply({
-        embeds: [
-          {
-            title: `Added to the queue! ~ 🎸 Music`,
-            fields: [
-              {
-                name: 'Title',
-                value: `${track.title} (${track.album})`,
-              },
-              {
-                name: 'Artists',
-                value: track.artists.map((artist) => artist.name).join(', '),
-              },
-            ],
-            color: '#53a653',
-            thumbnail: track.artwork,
-          },
-        ],
-      });
     } catch (error) {
       logger.error(error);
       throw new Error('Failed to request the song!');
