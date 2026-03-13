@@ -15,7 +15,13 @@ export class Tidal {
   #clientId: string;
   #clientSecret: string;
   #token?: Tidal.Api.TokenResponse;
+  #refresh?: NodeJS.Timeout;
   #clients: Record<string, Tiddl> = {};
+
+  /**
+   * The expiration buffer time in seconds
+   */
+  static BUFFER = 60;
 
   constructor({ clientId, clientSecret }: Tidal.Options) {
     this.#clientId = clientId;
@@ -38,6 +44,27 @@ export class Tidal {
     }
 
     return client;
+  }
+
+  async token(force?: boolean): Promise<string> {
+    const body = new FormData();
+    body.set('grant_type', 'client_credentials');
+
+    if (!this.#token || force) {
+      if (this.#refresh) clearInterval(this.#refresh);
+
+      this.#token = await rfetch.post<Tidal.Api.TokenResponse>('https://auth.tidal.com/v1/oauth2/token', {
+        headers: {
+          Authorization: `Basic ${this.credentials}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'grant_type=client_credentials',
+      });
+
+      this.#refresh = setTimeout(() => this.token(true), (this.#token.expires_in - Tidal.BUFFER) * 1000);
+    }
+
+    return this.#token.access_token;
   }
 
   async #fetch<T>(endpoint: string, options: RibbonFetchBasicOptions): Promise<T> {
@@ -75,23 +102,6 @@ export class Tidal {
         throw error;
       }
     }, 10);
-  }
-
-  async token(): Promise<string> {
-    const body = new FormData();
-    body.set('grant_type', 'client_credentials');
-
-    if (!this.#token) {
-      this.#token = await rfetch.post<Tidal.Api.TokenResponse>('https://auth.tidal.com/v1/oauth2/token', {
-        headers: {
-          Authorization: `Basic ${this.credentials}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: 'grant_type=client_credentials',
-      });
-    }
-
-    return this.#token.access_token;
   }
 
   async getArtworks(ids?: string[]): Promise<Tidal.Artwork[]> {
@@ -409,6 +419,14 @@ export namespace Tidal {
   export namespace Api {
     export type TokenResponse = {
       access_token: string;
+
+      /**
+       * The expiration time in seconds
+       */
+      expires_in: number;
+
+      scope: string;
+      token_type: 'Bearer';
     };
 
     export type Response<T> = {
