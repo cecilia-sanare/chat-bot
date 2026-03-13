@@ -205,7 +205,6 @@ export class DiscordPlatform extends FlariePlatform {
         const { channelId } = connection.joinConfig;
         if (!channelId) throw new Error('Connection not joined to a voice channel');
 
-        console.log(oldState);
         this.emit('audio:idle', { guildId, channelId });
       });
 
