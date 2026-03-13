@@ -4,6 +4,8 @@ import { Tidal } from '../services/tidal';
 import { MusicManager } from '../services/music';
 import dedent from 'dedent';
 import { RibbonLogger } from '@ribbon-studios/logger';
+import { Tiddl } from '../services/tiddl';
+import { ReadStream } from 'fs';
 
 const logger = new RibbonLogger('music');
 
@@ -13,14 +15,44 @@ export function addMusicCommands(flarie: Flarie) {
   const tidal = new Tidal(config.tidal);
   const music = new MusicManager();
 
-  const next = async (platform: FlariePlatform, guildId: string | undefined, externalTrack?: Tidal.Track) => {
-    if (!guildId) return;
+  const next = async (
+    platform: FlariePlatform,
+    guildId: string | undefined,
+    channelId: string | undefined,
+    externalTrack?: Tidal.Track
+  ) => {
+    if (!guildId || !channelId) return;
 
     const track = externalTrack ?? music.next(guildId);
 
     if (!track) return;
 
-    const stream = await tidal.stream(track.id);
+    let stream: ReadStream;
+
+    try {
+      stream = await tidal.stream(guildId, track.id);
+    } catch (error) {
+      if (error instanceof Tiddl.LoginRequired) {
+        const client = tidal.getClient(guildId);
+
+        client.once('login:required', async ({ url }) => {
+          await platform.send(channelId, {
+            embeds: [
+              {
+                title: `Auth Required! ~ 🎸 Music`,
+                description: `Please authenticate Tidal @ ${url}`,
+                color: '#bb2124',
+              },
+            ],
+          });
+        });
+
+        await client.login();
+        stream = await tidal.stream(guildId, track.id);
+      } else {
+        throw error;
+      }
+    }
 
     await platform.play(guildId, stream);
   };
@@ -58,7 +90,30 @@ export function addMusicCommands(flarie: Flarie) {
 
       if (!nextTrack) return;
 
-      await tidal.download(nextTrack.id);
+      try {
+        await tidal.download(guildId, nextTrack.id);
+      } catch (error) {
+        if (error instanceof Tiddl.LoginRequired) {
+          const client = tidal.getClient(guildId);
+
+          client.once('login:required', async ({ url }) => {
+            await platform.send(channelId, {
+              embeds: [
+                {
+                  title: `Auth Required! ~ 🎸 Music`,
+                  description: `Please authenticate Tidal @ ${url}`,
+                  color: '#bb2124',
+                },
+              ],
+            });
+          });
+
+          await client.login();
+          await tidal.download(guildId, nextTrack.id);
+        } else {
+          throw error;
+        }
+      }
     });
 
     platform.on('audio:paused', async ({ channelId }) => {
@@ -74,11 +129,12 @@ export function addMusicCommands(flarie: Flarie) {
       });
     });
 
-    platform.on('audio:idle', ({ guildId }) => next(platform, guildId));
+    platform.on('audio:idle', ({ guildId, channelId }) => next(platform, guildId, channelId));
   }
 
-  music.on('fresh', async ({ track }) => {
-    await tidal.download(track.id);
+  music.on('fresh', async ({ guildId, track }) => {
+    // TODO: Figure out how to handle this
+    await tidal.download(guildId, track.id);
   });
 
   flarie.register('playing', async ({ message, platform }) => {
@@ -160,7 +216,7 @@ export function addMusicCommands(flarie: Flarie) {
       });
     }
 
-    await next(platform, message.guildId, track);
+    await next(platform, message.guildId, message.channelId, track);
   });
 
   flarie.register('queue', async ({ message }) => {
@@ -239,7 +295,7 @@ export function addMusicCommands(flarie: Flarie) {
         music.queue(message.guildId, ...playlist.tracks);
 
         if (!platform.playing(message.guildId)) {
-          return await next(platform, message.guildId);
+          return await next(platform, message.guildId, message.channelId);
         }
 
         await message.reply({
@@ -271,7 +327,7 @@ export function addMusicCommands(flarie: Flarie) {
         music.queue(message.guildId, track);
 
         if (!platform.playing(message.guildId)) {
-          return await next(platform, message.guildId);
+          return await next(platform, message.guildId, message.channelId);
         }
 
         await message.reply({

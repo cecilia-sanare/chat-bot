@@ -3,11 +3,13 @@ import { FluxerPlatform } from '@flarie/fluxer';
 import { Sonarr } from './services/sonarr';
 import { Radarr } from './services/radarr';
 import { Tidal } from './services/tidal';
+import { join, resolve } from 'path';
 
 export type Config = {
   version: string;
   short_version: string;
   environment: string;
+  data_directory: string;
   db: string;
   fluxer: Partial<FluxerPlatform.Options>;
   discord: Partial<DiscordPlatform.Options>;
@@ -39,12 +41,14 @@ export namespace defined {
 }
 
 const version = process.env.VERSION ?? 'local';
+const data_directory = process.env.DATA_DIR ?? resolve('.');
 
 export const config: Config = {
   version,
   short_version: version.substring(0, 7),
   environment: process.env.NODE_ENV ?? 'development',
-  db: process.env.DB_URL ?? 'file:local.db',
+  data_directory,
+  db: process.env.DB_URL ?? `file:${join(data_directory, 'local.db')}`,
   fluxer: {
     token: process.env.FLUXER_BOT_TOKEN,
     status: process.env.STATUS ?? 'Playing with your heart~ ❤️',

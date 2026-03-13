@@ -1,6 +1,6 @@
 FROM oven/bun:1-slim
 ENV PATH="/root/.local/bin:$PATH" \
-    DB_URL="file:/data/local.db" \
+    DATA_DIR="/data" \
     NODE_ENV="production"
 
 # System deps first — these change least often

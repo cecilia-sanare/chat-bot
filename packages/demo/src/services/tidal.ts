@@ -7,24 +7,37 @@ import { Tiddl } from './tiddl';
 import { transcode } from '../utils/tools';
 import { number } from '../utils/parsers';
 import { RibbonLogger } from '@ribbon-studios/logger';
+import { SONGS, TIDDL_CONFIGS } from '../constants/directories';
 
 const logger = new RibbonLogger('tidal');
-const SONGS_DIR = join(import.meta.dir, 'songs');
 
 export class Tidal {
   #clientId: string;
   #clientSecret: string;
   #token?: Tidal.Api.TokenResponse;
-  #tiddl: Tiddl;
+  #clients: Record<string, Tiddl> = {};
 
   constructor({ clientId, clientSecret }: Tidal.Options) {
     this.#clientId = clientId;
     this.#clientSecret = clientSecret;
-    this.#tiddl = new Tiddl();
   }
 
   get credentials() {
     return Buffer.from(`${this.#clientId}:${this.#clientSecret}`).toString('base64');
+  }
+
+  getClient(guildId: string): Tiddl {
+    let client = this.#clients[guildId];
+
+    if (!client) {
+      client = new Tiddl({
+        config: join(TIDDL_CONFIGS, `${guildId}.json`),
+      });
+
+      this.#clients[guildId] = client;
+    }
+
+    return client;
   }
 
   async #fetch<T>(endpoint: string, options: RibbonFetchBasicOptions): Promise<T> {
@@ -299,16 +312,16 @@ export class Tidal {
   }
 
   file(id: string, extension: 'flac' | 'ogg'): string {
-    return join(SONGS_DIR, `${id}.${extension}`);
+    return join(SONGS, `${id}.${extension}`);
   }
 
-  async download(id: string): Promise<string> {
+  async download(guildId: string, id: string): Promise<string> {
     const ogg = this.file(id, 'ogg');
 
     // If we have it cached already bail early
     if (existsSync(ogg)) return ogg;
 
-    const flac = await this.#tiddl.download(id);
+    const flac = await this.getClient(guildId).download(id);
 
     await transcode(flac, ogg);
     await unlink(flac);
@@ -316,8 +329,8 @@ export class Tidal {
     return ogg;
   }
 
-  async stream(id: string): Promise<ReadStream> {
-    const file = await this.download(id);
+  async stream(guildId: string, id: string): Promise<ReadStream> {
+    const file = await this.download(guildId, id);
 
     return createReadStream(file);
   }

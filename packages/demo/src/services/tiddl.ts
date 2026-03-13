@@ -1,27 +1,31 @@
 import { spawn } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { number } from '../utils/parsers';
 import { humanizeDuration } from '../utils/humanize';
 import { RibbonLogger } from '@ribbon-studios/logger';
+import { SONGS } from '../constants/directories';
 
 const logger = new RibbonLogger('tiddl');
 
-const SONGS_DIR = join(import.meta.dir, 'songs');
-
 export class Tiddl {
+  #listeners: Tiddl.Listeners = {
+    'login:required': [],
+  };
+
+  #options: Tiddl.Options;
+
   /**
    * The expiration buffer time in seconds
    */
   static BUFFER = 3600;
   #expiration?: NodeJS.Timeout;
 
-  constructor() {
-    this.refresh().catch(async (error) => {
-      if (error instanceof Tiddl.LoginRequired) {
-        await this.login();
-        await this.refresh();
-      }
+  constructor(options: Tiddl.Options) {
+    this.#options = options;
+
+    mkdirSync(this.#options.config, {
+      recursive: true,
     });
   }
 
@@ -37,7 +41,13 @@ export class Tiddl {
   }
 
   #spawn(args: string[]) {
-    return spawn('tiddl', args, { stdio: 'pipe' });
+    return spawn('tiddl', args, {
+      env: {
+        ...process.env,
+        TIDDL_PATH: this.#options.config,
+      },
+      stdio: 'pipe',
+    });
   }
 
   async #exec(args: string[], debug?: boolean): Promise<string> {
@@ -61,15 +71,27 @@ export class Tiddl {
   }
 
   async login(): Promise<void> {
-    return await new Promise<void>((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const dl = this.#spawn(['auth', 'login']);
 
       dl.stderr?.on('data', (data) => logger.error(data.toString()));
       dl.stdout?.on('data', (data) => logger.info(data.toString()));
 
+      dl.stdout?.on('data', (data) => {
+        const line: string = data.toString();
+        const [, url] = line.match(/'(https:\/\/link.tidal.com\/[^']+)'/) ?? [];
+
+        if (!url) return;
+
+        this.#emit('login:required', { url });
+      });
+
       dl.on('close', (code) => (code === 0 ? resolve() : reject()));
       dl.on('error', reject);
     });
+
+    // Always refresh after logging in to get the expiration time
+    await this.refresh();
   }
 
   async refresh(force?: boolean): Promise<void> {
@@ -95,7 +117,7 @@ export class Tiddl {
   }
 
   async download(id: string): Promise<string> {
-    const file = join(SONGS_DIR, `${id}.flac`);
+    const file = join(SONGS, `${id}.flac`);
 
     if (existsSync(file)) return file;
 
@@ -104,15 +126,56 @@ export class Tiddl {
     logger.info('Downloading...');
 
     await this.#exec(
-      ['download', ['-p', SONGS_DIR], ['-o', '{item.id}'], ['url', `https://tidal.com/track/${id}/u`]].flat()
+      ['download', ['-p', SONGS], ['-o', '{item.id}'], ['url', `https://tidal.com/track/${id}/u`]].flat()
     );
 
     logger.info('Downloading success!');
 
-    return join(SONGS_DIR, `${id}.flac`);
+    return join(SONGS, `${id}.flac`);
+  }
+
+  on<E extends keyof Tiddl.Listeners>(event: E, listener: Tiddl.Listeners[E][number]): void {
+    this.#listeners[event].push(listener);
+  }
+
+  once<E extends keyof Tiddl.Listeners>(event: E, listener: Tiddl.Listeners[E][number]): void {
+    const onceListener: Tiddl.Listeners[E][number] = (...args) => {
+      listener.call(undefined, ...args);
+      this.off('login:required', onceListener);
+    };
+
+    this.on('login:required', onceListener);
+  }
+
+  async off<E extends keyof Tiddl.Listeners>(event: E, callback: Tiddl.Listeners[E][number]) {
+    const index = this.#listeners[event].indexOf(callback as any);
+
+    if (index === -1) return;
+
+    this.#listeners[event] = this.#listeners[event].splice(index, 1) as any;
+  }
+
+  async #emit<E extends keyof Tiddl.Listeners>(
+    event: E,
+    ...args: Parameters<Tiddl.Listeners[E][number]>
+  ): Promise<void> {
+    const listeners = this.#listeners[event];
+
+    await Promise.all(listeners.map((listener) => listener.call(undefined, ...args)));
   }
 }
 
 export namespace Tiddl {
+  export type Options = {
+    config: string;
+  };
+
   export class LoginRequired extends Error {}
+
+  export type Listeners = {
+    'login:required': LoginRequiredListener[];
+  };
+
+  export type LoginRequiredListener = (details: LoginRequiredDetails) => void;
+  export type LoginRequiredDetails = { url: string };
 }

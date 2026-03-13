@@ -35,7 +35,5 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .env
 local.db
 
-*.mp3
-*.flac
-*.opus
-*.ogg
+**/demo/songs/
+**/demo/tiddl/
