@@ -1,12 +1,14 @@
-import { delay, retry, rfetch, RibbonFetchError } from '@ribbon-studios/js-utils';
-import { spawn } from 'child_process';
+import { delay, retry, rfetch, RibbonFetchBasicOptions } from '@ribbon-studios/js-utils';
 import { createReadStream, existsSync } from 'fs';
 import { ReadStream } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 import { join } from 'path';
 import { Tiddl } from './tiddl';
 import { transcode } from '../utils/tools';
+import { number } from '../utils/parsers';
+import { RibbonLogger } from '@ribbon-studios/logger';
 
+const logger = new RibbonLogger('tidal');
 const SONGS_DIR = join(import.meta.dir, 'songs');
 
 export class Tidal {
@@ -23,6 +25,43 @@ export class Tidal {
 
   get credentials() {
     return Buffer.from(`${this.#clientId}:${this.#clientSecret}`).toString('base64');
+  }
+
+  async #fetch<T>(endpoint: string, options: RibbonFetchBasicOptions): Promise<T> {
+    const token = await this.token();
+
+    const url = join('https://openapi.tidal.com', endpoint);
+
+    return await retry(async () => {
+      try {
+        return await rfetch.get<T>(url, {
+          ...options,
+          params: {
+            ...options.params,
+            countryCode: 'US',
+          },
+          headers: {
+            ...options.headers,
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.api+json',
+          },
+        });
+      } catch (error) {
+        if (rfetch.is.error(error)) {
+          const retryAfter = number(error.headers.get('retry-after'));
+
+          if (retryAfter) {
+            logger.warn(`Rate limited while hitting "${url}"! Pausing for ${retryAfter} seconds...`);
+
+            await delay(retryAfter * 1000);
+
+            logger.warn(`Rate limiting elapsed! Retrying...`);
+          }
+        }
+
+        throw error;
+      }
+    }, 10);
   }
 
   async token(): Promise<string> {
@@ -45,21 +84,11 @@ export class Tidal {
   async getArtworks(ids?: string[]): Promise<Tidal.Artwork[]> {
     if (!ids || ids.length === 0) return [];
 
-    const token = await this.token();
-
-    const { data: artworks } = await rfetch<Tidal.Api.Response<Tidal.Api.Artwork[]>>(
-      'https://openapi.tidal.com/v2/artworks',
-      {
-        params: {
-          countryCode: 'US',
-          'filter[id]': ids,
-        },
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/vnd.api+json',
-        },
-      }
-    );
+    const { data: artworks } = await this.#fetch<Tidal.Api.Response<Tidal.Api.Artwork[]>>('/v2/artworks', {
+      params: {
+        'filter[id]': ids,
+      },
+    });
 
     return artworks.map<Tidal.Artwork>((artwork) => ({
       id: artwork.id,
@@ -105,21 +134,11 @@ export class Tidal {
   async getPlaylist(url: Tidal.ParsedUrl): Promise<Tidal.Playlist | null> {
     if (url.type !== 'playlist') throw new Error(`Invalid type. (${url.type})`);
 
-    const token = await this.token();
-
-    const { data: playlist } = await rfetch<Tidal.Api.Response<Tidal.Api.Playlist>>(
-      `https://openapi.tidal.com/v2/playlists/${url.id}`,
-      {
-        params: {
-          countryCode: 'US',
-          include: ['coverArt'],
-        },
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/vnd.api+json',
-        },
-      }
-    );
+    const { data: playlist } = await this.#fetch<Tidal.Api.Response<Tidal.Api.Playlist>>(`/v2/playlists/${url.id}`, {
+      params: {
+        include: ['coverArt'],
+      },
+    });
 
     let cursor: string | null | undefined = undefined;
     const result: Tidal.Api.Track[] = [];
@@ -161,18 +180,11 @@ export class Tidal {
   async getPlaylistRelationships(url: Tidal.ParsedUrl, cursor?: string): Promise<Tidal.Page<Tidal.Api.Included>> {
     if (url.type !== 'playlist') throw new Error('');
 
-    const token = await this.token();
-
-    const { data, links } = await rfetch<Tidal.Api.PaginatedResponse<Tidal.Api.Included[]>>(
-      `https://openapi.tidal.com/v2/playlists/${url.id}/relationships/items`,
+    const { data, links } = await this.#fetch<Tidal.Api.PaginatedResponse<Tidal.Api.Included[]>>(
+      `/v2/playlists/${url.id}/relationships/items`,
       {
         params: {
-          countryCode: 'US',
           'page[cursor]': cursor,
-        },
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/vnd.api+json',
         },
       }
     );
@@ -184,8 +196,6 @@ export class Tidal {
   }
 
   async getTracks(urls: Tidal.ParsedUrl[]): Promise<Tidal.Track[]> {
-    const token = await this.token();
-
     try {
       const tracks: Tidal.Api.Track[] = [];
       const included: Record<string, Tidal.Api.Included> = {};
@@ -193,21 +203,14 @@ export class Tidal {
       for (let i = 0; i < urls.length; i += 20) {
         const ids = urls.slice(i, i + 20).map(({ id }) => id);
 
-        const { data: slicedTracks, included: slicedIncluded } = await retry(async () => {
-          await delay(2000);
-
-          return await rfetch<Tidal.Api.Response<Tidal.Api.Track[]>>(`https://openapi.tidal.com/v2/tracks`, {
-            params: {
-              countryCode: 'US',
-              include: ['albums', 'artists', 'albums.coverArt'],
-              'filter[id]': ids,
-            },
-            headers: {
-              Authorization: `Bearer ${token}`,
-              Accept: 'application/vnd.api+json',
-            },
-          });
-        }, 5);
+        const { data: slicedTracks, included: slicedIncluded } = await this.#fetch<
+          Tidal.Api.Response<Tidal.Api.Track[]>
+        >(`/v2/tracks`, {
+          params: {
+            include: ['albums', 'artists', 'albums.coverArt'],
+            'filter[id]': ids,
+          },
+        });
 
         tracks.push(...slicedTracks);
 
@@ -275,8 +278,6 @@ export class Tidal {
           album: album?.attributes.title ?? 'Unknown',
           artwork: artwork?.files.find((artwork) => artwork.width === 320)?.url,
         });
-
-        await delay(500);
       }
 
       return result;
