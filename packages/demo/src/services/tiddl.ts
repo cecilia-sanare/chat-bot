@@ -15,9 +15,10 @@ export class Tiddl {
   #expiration?: NodeJS.Timeout;
 
   constructor() {
-    this.refresh().catch((error) => {
+    this.refresh().catch(async (error) => {
       if (error instanceof Tiddl.LoginRequired) {
-        this.login();
+        await this.login();
+        await this.refresh();
       }
     });
   }
