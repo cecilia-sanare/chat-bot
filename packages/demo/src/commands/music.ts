@@ -2,6 +2,7 @@ import { Flarie, FlariePlatform } from '@flarie/core';
 import { config, defined } from '../config';
 import { Tidal } from '../services/tidal';
 import { MusicManager } from '../services/music';
+import dedent from 'dedent';
 
 export function addMusicCommands(flarie: Flarie) {
   if (!defined.tidal(config.tidal)) return;
@@ -32,7 +33,7 @@ export function addMusicCommands(flarie: Flarie) {
       await platform.send(channelId, {
         embeds: [
           {
-            title: `Now Playing!`,
+            title: `Now Playing! ~ 🎸 Music`,
             fields: [
               {
                 name: 'Title',
@@ -54,7 +55,7 @@ export function addMusicCommands(flarie: Flarie) {
       await platform.send(channelId, {
         embeds: [
           {
-            title: `Now Paused!`,
+            title: `Now Paused! ~ 🎸 Music`,
             description: 'Music playback is now paused!',
             footer: 'Type unpause to resume playback!',
             color: '#53a653',
@@ -65,6 +66,48 @@ export function addMusicCommands(flarie: Flarie) {
 
     platform.on('audio:idle', ({ guildId }) => next(platform, guildId));
   }
+
+  flarie.register('playing', async ({ message, platform }) => {
+    if (!message.guildId) return;
+
+    await message.typing();
+
+    const track = music.current(message.guildId);
+
+    if (!track) {
+      return await message.reply({
+        embeds: [
+          {
+            title: `Now Playing! ~ 🎸 Music`,
+            description: dedent`
+              Nothing is playing at the moment.
+              How about queuing something up? ^_^
+            `,
+          },
+        ],
+      });
+    }
+
+    await message.reply({
+      embeds: [
+        {
+          title: `Now Playing! ~ 🎸 Music`,
+          fields: [
+            {
+              name: 'Title',
+              value: `${track.title} (${track.album})`,
+            },
+            {
+              name: 'Artists',
+              value: track.artists.map((artist) => artist.name).join(', '),
+            },
+          ],
+          color: '#53a653',
+          thumbnail: track.artwork,
+        },
+      ],
+    });
+  });
 
   flarie.register('join', async ({ message, platform }) => {
     if (!message.guildId) return;
@@ -109,13 +152,14 @@ export function addMusicCommands(flarie: Flarie) {
   flarie.register('queue', async ({ message }) => {
     if (!message.guildId) return;
 
+    const current = music.current(message.guildId);
     const queue = music.lookup(message.guildId);
 
-    if (queue.length === 0) {
+    if (!current && queue.length === 0) {
       return await message.reply({
         embeds: [
           {
-            title: `Queue`,
+            title: `Queue! ~ 🎸 Music`,
             description: 'The queues empty! Queue something up with `queue {url}`!',
           },
         ],
@@ -127,15 +171,25 @@ export function addMusicCommands(flarie: Flarie) {
     return await message.reply({
       embeds: [
         {
-          title: `Queue`,
+          title: `Queue! ~ 🎸 Music`,
           description: [
-            ...shortQueue.map(
-              (track) => `1. **${track.title}** _by ${track.artists.map((artist) => artist.name).join(', ')}_`
-            ),
-            queue.length > shortQueue.length && `1. ${queue.length - shortQueue.length} more items...`,
+            current && `**Currently Playing:** ${current.title}`,
+            shortQueue.length > 0 &&
+              dedent`
+              **Backlog**
+              ${[
+                ...shortQueue.map(
+                  (track) => `1. **${track.title}** _by ${track.artists.map((artist) => artist.name).join(', ')}_`
+                ),
+                queue.length > shortQueue.length && `1. ${queue.length - shortQueue.length} more items...`,
+              ]
+                .filter(Boolean)
+                .join('\n')}
+            `,
           ]
             .filter(Boolean)
-            .join('\n'),
+            .join('\n\n'),
+          thumbnail: current?.artwork,
         },
       ],
     });
@@ -174,7 +228,7 @@ export function addMusicCommands(flarie: Flarie) {
       await message.reply({
         embeds: [
           {
-            title: `Added to the Queue!`,
+            title: `Added to the queue! ~ 🎸 Music`,
             fields: [
               {
                 name: 'Title',
