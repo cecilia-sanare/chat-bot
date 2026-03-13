@@ -6,3 +6,4 @@ services:
     volumes:
       # SQLite Database
       - ./data:/data
+      - ./.tiddl:/root/.tiddl
