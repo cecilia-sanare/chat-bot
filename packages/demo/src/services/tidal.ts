@@ -8,6 +8,7 @@ import { transcode } from '../utils/tools';
 import { number } from '../utils/parsers';
 import { RibbonLogger } from '@ribbon-studios/logger';
 import { SONGS, TIDDL_CONFIGS } from '../constants/directories';
+import { dayjs } from '../utils/dayjs';
 
 const logger = new RibbonLogger('tidal');
 
@@ -51,6 +52,7 @@ export class Tidal {
     body.set('grant_type', 'client_credentials');
 
     if (!this.#token || force) {
+      logger.info('authenticating...');
       if (this.#refresh) clearInterval(this.#refresh);
 
       this.#token = await rfetch.post<Tidal.Api.TokenResponse>('https://auth.tidal.com/v1/oauth2/token', {
@@ -61,7 +63,19 @@ export class Tidal {
         body: 'grant_type=client_credentials',
       });
 
-      this.#refresh = setTimeout(() => this.token(true), (this.#token.expires_in - Tidal.BUFFER) * 1000);
+      logger.info(
+        `Authenticated successfully! Refresh will occur ${dayjs().add(this.#token.expires_in, 'second').fromNow()}.`
+      );
+      this.#refresh = setTimeout(
+        async () => {
+          logger.info('refreshing token');
+
+          await this.token(true);
+
+          logger.info('token refreshed successfully!');
+        },
+        (this.#token.expires_in - Tidal.BUFFER) * 1000
+      );
     }
 
     return this.#token.access_token;
