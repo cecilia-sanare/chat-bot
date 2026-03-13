@@ -2,6 +2,9 @@ import { Client, Events, MessageSendOptions, Message } from '@fluxerjs/core';
 import { FlariePlatform, FlarieUser, FlarieOutgoingMessage, color } from '@flarie/core';
 import { getVoiceManager, VoiceManager } from '@fluxerjs/voice';
 import { ReadStream } from 'fs';
+import { RibbonLogger } from '@ribbon-studios/logger';
+
+const logger = new RibbonLogger('fluxer');
 
 export class FluxerPlatform extends FlariePlatform {
   override name: string = 'Fluxer';
@@ -72,7 +75,7 @@ export class FluxerPlatform extends FlariePlatform {
 
     this.#client.on(Events.Ready, () => {
       if (!this.#client.user) {
-        throw new Error('[Fluxer] Login succeeded, but no bot user is present!');
+        return logger.error('Login succeeded, but no bot user is present!');
       }
 
       this.#bot = {
@@ -81,7 +84,7 @@ export class FluxerPlatform extends FlariePlatform {
         displayName: this.#client.user.globalName,
       };
 
-      console.log(`[Fluxer] Logged in as ${this.#bot.username}!`);
+      logger.info(`Logged in as ${this.#bot.username}!`);
     });
 
     try {
@@ -91,7 +94,7 @@ export class FluxerPlatform extends FlariePlatform {
             await this.#client.login(token);
             return;
           } catch (error) {
-            console.warn(`[Fluxer] Failed to connect, fluxer may be down! We'll retry in 30 seconds!`);
+            logger.warn(`Failed to connect, fluxer may be down! We'll retry in 30 seconds!`);
             await new Promise((resolve) => setTimeout(resolve, 30000));
           }
         }
@@ -99,7 +102,7 @@ export class FluxerPlatform extends FlariePlatform {
 
       login();
     } catch (error) {
-      console.error('Failed to connect to the gateway!', error);
+      logger.error('Failed to connect to the gateway!', error);
     }
   }
 
@@ -127,7 +130,7 @@ export class FluxerPlatform extends FlariePlatform {
       try {
         await this.#voiceManager.join(channel);
       } catch (e) {
-        console.error('Auto-reconnect failed:', e);
+        logger.error('Auto-reconnect failed:', e);
       }
     });
   }
@@ -160,13 +163,13 @@ export class FluxerPlatform extends FlariePlatform {
     if (!connection) throw new Error('Not connected to a voice channel');
 
     connection.on('stateChange', (oldState, newState) => {
-      console.log(`Connection: ${oldState.status} -> ${newState.status}`);
+      logger.info(`Connection: ${oldState.status} -> ${newState.status}`);
     });
 
     connection.playOpus(stream);
 
-    this.#client.on(Events.VoiceStateUpdate, (data) => console.log(data));
-    this.#client.on(Events.VoiceServerUpdate, (data) => console.log(data));
+    this.#client.on(Events.VoiceStateUpdate, (data) => logger.info(data));
+    this.#client.on(Events.VoiceServerUpdate, (data) => logger.info(data));
 
     // player.on(AudioPlayerStatus.Playing, () =>
     //   this.emit('audio:playing', { guildId, channelId: connection.channel.id })

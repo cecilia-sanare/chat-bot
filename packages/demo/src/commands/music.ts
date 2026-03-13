@@ -3,6 +3,9 @@ import { config, defined } from '../config';
 import { Tidal } from '../services/tidal';
 import { MusicManager } from '../services/music';
 import dedent from 'dedent';
+import { RibbonLogger } from '@ribbon-studios/logger';
+
+const logger = new RibbonLogger('music');
 
 export function addMusicCommands(flarie: Flarie) {
   if (!defined.tidal(config.tidal)) return;
@@ -245,7 +248,7 @@ export function addMusicCommands(flarie: Flarie) {
         ],
       });
     } catch (error) {
-      console.error(error);
+      logger.error(error);
       throw new Error('Failed to request the song!');
     }
   });

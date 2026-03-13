@@ -1,4 +1,9 @@
+import { RibbonLogger } from '@ribbon-studios/logger';
 import { spawn, spawnSync } from 'child_process';
+
+const loggers = {
+  ffmpeg: new RibbonLogger('ffmpeg'),
+};
 
 /**
  * Transcodes a audio file from flac -> opus
@@ -9,7 +14,7 @@ export async function transcode(input: string, output: string): Promise<void> {
     const transcoder = detect.transcoder();
 
     if (transcoder === 'ffmpeg') {
-      console.log('[ffmpeg] Transcoding...');
+      loggers.ffmpeg.info('Transcoding...');
       await new Promise<void>((resolve, reject) => {
         const transcode = spawn(
           'ffmpeg',
@@ -30,11 +35,11 @@ export async function transcode(input: string, output: string): Promise<void> {
       throw new Error('No transcoder found');
     }
   } catch (error) {
-    console.error(error);
+    loggers.ffmpeg.error(error);
     throw new Error('Failed to transcode song');
   }
 
-  console.log('Transcoding success!');
+  loggers.ffmpeg.info('Transcoding success!');
 }
 
 export namespace detect {

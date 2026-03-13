@@ -2,7 +2,7 @@
   "name": "flarie",
   "version": "1.0.0",
   "devDependencies": {
-    "@types/node": "^25.4.0",
+    "@types/node": "^25.5.0",
     "typescript": "^5.9.3"
   },
   "private": true,
@@ -17,5 +17,8 @@
       "packages/*",
       "!packages/demo/**"
     ]
+  },
+  "dependencies": {
+    "@ribbon-studios/logger": "^3.1.0"
   }
 }

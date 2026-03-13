@@ -8,6 +8,9 @@ import { addArrCommands } from './commands/arr';
 import { addInfoCommand } from './commands/info';
 import { addStatusCommands } from './commands/status';
 import { addMusicCommands } from './commands/music';
+import { RibbonLogger } from '@ribbon-studios/logger';
+
+const logger = new RibbonLogger('bot');
 
 export function getPlatforms() {
   const platforms: FlariePlatform[] = [];
@@ -22,7 +25,7 @@ export function getPlatforms() {
     }
 
     if (platforms.length === 0) {
-      console.error('Missing FLUXER_BOT_TOKEN or DISCORD_BOT_TOKEN environment variable.');
+      logger.error('Missing FLUXER_BOT_TOKEN or DISCORD_BOT_TOKEN environment variable.');
       process.exit(1);
     }
   } else {
@@ -32,8 +35,8 @@ export function getPlatforms() {
   return platforms;
 }
 
-console.log(
-  `\n[ChatBot]: Starting up! (${config.version === 'local' ? config.version : `https://github.com/cecilia-sanare/chat-bot/tree/${config.version}`})`
+logger.info(
+  `Starting up! (${config.version === 'local' ? config.version : `https://github.com/cecilia-sanare/chat-bot/tree/${config.version}`})`
 );
 
 const flarie = new Flarie({

@@ -29,6 +29,9 @@ import {
   AudioPlayer,
 } from '@discordjs/voice';
 import { ReadStream } from 'node:fs';
+import { RibbonLogger } from '@ribbon-studios/logger';
+
+const logger = new RibbonLogger('discord');
 
 export class DiscordPlatform extends FlariePlatform {
   override name: string = 'Discord';
@@ -116,7 +119,7 @@ export class DiscordPlatform extends FlariePlatform {
     });
 
     const interval = setInterval(() => {
-      console.log('[Discord] May be down at the moment, please be patient!');
+      logger.warn('May be down at the moment, please be patient!');
     }, 10000);
 
     this.#client.once(Events.ClientReady, (client) => {
@@ -128,7 +131,7 @@ export class DiscordPlatform extends FlariePlatform {
         displayName: client.user.globalName,
       };
 
-      console.log(`[Discord] Logged in as ${this.#bot.username}!`);
+      logger.info(`Logged in as ${this.#bot.username}!`);
     });
 
     try {
@@ -138,7 +141,7 @@ export class DiscordPlatform extends FlariePlatform {
             await this.#client.login(token);
             return;
           } catch (error) {
-            console.warn(`[Fluxer] Failed to connect, fluxer may be down! We'll retry in 30 seconds!`);
+            logger.error(`Failed to connect, discord may be down! We'll retry in 30 seconds!`);
             await new Promise((resolve) => setTimeout(resolve, 30000));
           }
         }
@@ -146,7 +149,7 @@ export class DiscordPlatform extends FlariePlatform {
 
       login();
     } catch (error) {
-      console.error('Failed to connect to the gateway!', error);
+      logger.error('Failed to connect to the gateway!', error);
     }
   }
 
@@ -166,6 +169,47 @@ export class DiscordPlatform extends FlariePlatform {
           noSubscriber: NoSubscriberBehavior.Pause,
         },
       });
+
+      player.on(AudioPlayerStatus.Playing, (oldState) => {
+        const connection = getVoiceConnection(guildId);
+
+        if (!connection) throw new Error(`Failed to get connection for ${guildId}`);
+
+        const { channelId } = connection.joinConfig;
+        if (!channelId) throw new Error('Connection not joined to a voice channel');
+
+        // If we were previously idle then we're resuming, otherwise we're playing something new
+        if (oldState.status === AudioPlayerStatus.Paused) {
+          this.emit('audio:resume', { guildId, channelId });
+        } else if (oldState.status !== AudioPlayerStatus.AutoPaused) {
+          this.emit('audio:playing', { guildId, channelId });
+        }
+      });
+
+      player.on(AudioPlayerStatus.Paused, () => {
+        const connection = getVoiceConnection(guildId);
+
+        if (!connection) throw new Error(`Failed to get connection for ${guildId}`);
+
+        const { channelId } = connection.joinConfig;
+        if (!channelId) throw new Error('Connection not joined to a voice channel');
+
+        this.emit('audio:paused', { guildId, channelId });
+      });
+
+      player.on(AudioPlayerStatus.Idle, (oldState) => {
+        const connection = getVoiceConnection(guildId);
+
+        if (!connection) throw new Error(`Failed to get connection for ${guildId}`);
+
+        const { channelId } = connection.joinConfig;
+        if (!channelId) throw new Error('Connection not joined to a voice channel');
+
+        console.log(oldState);
+        this.emit('audio:idle', { guildId, channelId });
+      });
+
+      player.on('error', logger.error);
 
       this.#players.set(guildId, player);
     }
@@ -190,6 +234,10 @@ export class DiscordPlatform extends FlariePlatform {
       selfDeaf: true,
     });
 
+    connection.on('stateChange', (oldState, newState) => {
+      logger.info(`Connection: ${oldState.status} -> ${newState.status}`);
+    });
+
     try {
       await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
     } catch {
@@ -211,10 +259,6 @@ export class DiscordPlatform extends FlariePlatform {
 
     if (!connection) throw new Error('Not connected to a voice channel');
 
-    connection.on('stateChange', (oldState, newState) => {
-      console.log(`Connection: ${oldState.status} -> ${newState.status}`);
-    });
-
     const resource = createAudioResource(stream, {
       inputType: StreamType.OggOpus,
     });
@@ -229,34 +273,6 @@ export class DiscordPlatform extends FlariePlatform {
     }
 
     const player = this.#player(guildId);
-
-    player.on(AudioPlayerStatus.Playing, (oldState) => {
-      const { channelId } = connection.joinConfig;
-      if (!channelId) throw new Error('Connection not joined to a voice channel');
-
-      // If we were previously idle then we're resuming, otherwise we're playing something new
-      if (oldState.status === AudioPlayerStatus.Paused) {
-        this.emit('audio:resume', { guildId, channelId });
-      } else if (oldState.status !== AudioPlayerStatus.AutoPaused) {
-        this.emit('audio:playing', { guildId, channelId });
-      }
-    });
-
-    player.on(AudioPlayerStatus.Paused, () => {
-      const { channelId } = connection.joinConfig;
-      if (!channelId) throw new Error('Connection not joined to a voice channel');
-
-      this.emit('audio:paused', { guildId, channelId });
-    });
-
-    player.on(AudioPlayerStatus.Idle, () => {
-      const { channelId } = connection.joinConfig;
-      if (!channelId) throw new Error('Connection not joined to a voice channel');
-
-      this.emit('audio:idle', { guildId, channelId });
-    });
-
-    player.on('error', console.error);
 
     connection.subscribe(player);
     player.play(resource);

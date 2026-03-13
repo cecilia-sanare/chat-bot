@@ -4,6 +4,9 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import { number } from '../utils/parsers';
 import { humanizeDuration } from '../utils/humanize';
+import { RibbonLogger } from '@ribbon-studios/logger';
+
+const logger = new RibbonLogger('tiddl');
 
 const SONGS_DIR = join(import.meta.dir, 'songs');
 
@@ -29,7 +32,7 @@ export class Tiddl {
   set expiration(expiration: number) {
     if (this.#expiration) clearTimeout(this.#expiration);
     const delay = expiration - Date.now() - Tiddl.BUFFER * 1000;
-    console.log(`[tiddl] Forcibly refreshing token in... ${humanizeDuration(Math.floor(delay / 1000))}`);
+    logger.info(`Forcibly refreshing token in... ${humanizeDuration(Math.floor(delay / 1000))}`);
 
     this.#expiration = setTimeout(() => this.refresh(true), Math.max(delay, 0));
   }
@@ -48,8 +51,8 @@ export class Tiddl {
       dl.stdout?.on('data', (data) => (output += data.toString()));
       dl.stderr?.on('data', (data) => (output += data.toString()));
 
-      dl.stderr?.on('data', (data) => console.error(chalk.red('[tiddl]', data.toString())));
-      dl.stdout?.on('data', (data) => console.log('[tiddl]', data.toString()));
+      dl.stderr?.on('data', (data) => logger.error(data.toString()));
+      dl.stdout?.on('data', (data) => logger.info(data.toString()));
 
       dl.on('close', (code) => (code === 0 ? resolve(output) : reject()));
       dl.on('error', reject);
@@ -60,8 +63,8 @@ export class Tiddl {
     return await new Promise<void>((resolve, reject) => {
       const dl = this.#spawn(['auth', 'login']);
 
-      dl.stderr?.on('data', (data) => console.error(chalk.red('[tiddl]', data.toString())));
-      dl.stdout?.on('data', (data) => console.log('[tiddl]', data.toString()));
+      dl.stderr?.on('data', (data) => logger.error(data.toString()));
+      dl.stdout?.on('data', (data) => logger.info(data.toString()));
 
       dl.on('close', (code) => (code === 0 ? resolve() : reject()));
       dl.on('error', reject);
@@ -82,7 +85,7 @@ export class Tiddl {
     const result = output.match(/expires in (\d+)d (\d+)h (\d+)m/);
 
     if (!result) {
-      return console.warn('[tiddl] Unable to parse expiration time!');
+      return logger.warn('Unable to parse expiration time!');
     }
 
     const [, days, hours, minutes] = result;
@@ -97,13 +100,13 @@ export class Tiddl {
 
     await this.refresh();
 
-    console.log('Downloading...');
+    logger.info('Downloading...');
 
     await this.#exec(
       ['download', ['-p', SONGS_DIR], ['-o', '{item.id}'], ['url', `https://tidal.com/track/${id}/u`]].flat()
     );
 
-    console.log('Downloading success!');
+    logger.info('Downloading success!');
 
     return join(SONGS_DIR, `${id}.flac`);
   }
