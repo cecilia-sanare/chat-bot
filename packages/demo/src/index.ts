@@ -35,6 +35,7 @@ export function getPlatforms() {
   return platforms;
 }
 
+console.log('');
 logger.info(
   `Starting up! (${config.version === 'local' ? config.version : `https://github.com/cecilia-sanare/chat-bot/tree/${config.version}`})`
 );
