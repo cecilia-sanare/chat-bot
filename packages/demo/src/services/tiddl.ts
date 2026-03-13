@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import { spawn } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';
@@ -41,7 +40,7 @@ export class Tiddl {
     return spawn('tiddl', args, { stdio: 'pipe' });
   }
 
-  async #exec(args: string[]): Promise<string> {
+  async #exec(args: string[], debug?: boolean): Promise<string> {
     return await new Promise<string>((resolve, reject) => {
       const dl = this.#spawn(args);
 
@@ -51,8 +50,10 @@ export class Tiddl {
       dl.stdout?.on('data', (data) => (output += data.toString()));
       dl.stderr?.on('data', (data) => (output += data.toString()));
 
-      dl.stderr?.on('data', (data) => logger.error(data.toString()));
-      dl.stdout?.on('data', (data) => logger.info(data.toString()));
+      if (debug) {
+        dl.stderr?.on('data', (data) => logger.error(data.toString()));
+        dl.stdout?.on('data', (data) => logger.info(data.toString()));
+      }
 
       dl.on('close', (code) => (code === 0 ? resolve(output) : reject()));
       dl.on('error', reject);
