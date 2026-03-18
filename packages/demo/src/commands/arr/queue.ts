@@ -159,7 +159,7 @@ export async function getShowsEmbed(sonarr: Sonarr): Promise<FlarieEmbed> {
   if (upgrades.length > 0) {
     sections.push(dedent`
       **⚙️ Upgrades**
-      ${upgrades.map((item) => `- 🟢 [${item.series?.title} - Season ${item.episode?.seasonNumber} Episode ${item.episode?.episodeNumber}](${config.sonarr.url}/series/${item.series?.titleSlug})`)}
+      ${upgrades.map((item) => `- 🟢 [${item.series?.title} - Season ${item.episode?.seasonNumber} Episode ${item.episode?.episodeNumber}](${config.sonarr.url}/series/${item.series?.titleSlug})`).join('\n')}
     `);
   }
 
