@@ -1,3 +1,5 @@
+**This repository has moved to https://codeberg.org/ribbon-studios/chat-bot**
+
 # chat-bot
 
 ## Prerequisites

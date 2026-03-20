@@ -1,9 +1,0 @@
-services:
-  chat-bot:
-    container_name: chat-bot
-    build: .
-    env_file: '.env'
-    volumes:
-      # SQLite Database
-      - ./data:/data
-      - ./.tiddl:/root/.tiddl
